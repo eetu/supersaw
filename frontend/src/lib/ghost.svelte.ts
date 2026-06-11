@@ -165,6 +165,9 @@ const MOVES = [-2, -1, -1, 0, 1, 1, 2];
 
 export const ghostLit = new SvelteSet<Note>();
 
+/** Toggle state — owned here so the hidden-tab handler can switch it off. */
+export const ghost = $state({ on: false });
+
 let idleTimer: ReturnType<typeof setTimeout> | null = null;
 let stepTimer: ReturnType<typeof setTimeout> | null = null;
 let phrase: { note: Note | null; ms: number }[] = [];
@@ -201,8 +204,14 @@ function improvPhrase(): { note: Note | null; ms: number }[] {
 }
 
 function step(): void {
-	// don't fight the sequencer or play to a hidden tab — re-arm and wait
-	if (document.hidden || seq.playing) {
+	// hidden tab: switch the ghost off entirely (the toggle follows)
+	if (document.hidden) {
+		stopPlaying();
+		ghost.on = false;
+		return;
+	}
+	// don't fight the sequencer — go quiet and re-arm
+	if (seq.playing) {
 		stopPlaying();
 		arm();
 		return;
@@ -253,6 +262,14 @@ function onActivity(): void {
 	arm();
 }
 
+// tab hidden: full off, toggle included — don't lurk armed in the background
+function onHidden(): void {
+	if (document.hidden) {
+		stopPlaying();
+		ghost.on = false;
+	}
+}
+
 /** Enable: plays immediately; user input silences it and re-arms the idle
  * timer. Returns a cleanup for the page's $effect. */
 export function enableGhost(): () => void {
@@ -262,7 +279,9 @@ export function enableGhost(): () => void {
 	window.addEventListener('pointerdown', onActivity, true);
 	window.addEventListener('keydown', onActivity, true);
 	window.addEventListener('wheel', onActivity, true);
+	document.addEventListener('visibilitychange', onHidden);
 	return () => {
+		document.removeEventListener('visibilitychange', onHidden);
 		stopPlaying();
 		if (idleTimer) clearTimeout(idleTimer);
 		idleTimer = null;
