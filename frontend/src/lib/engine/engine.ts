@@ -19,6 +19,10 @@ export class SynthEngine {
 	private voices = new Map<Note, Voice>();
 	private scheduled = new Set<Voice>();
 	private bendCents = 0;
+	private channel: BroadcastChannel | null = null;
+
+	/** Fired when another tab claims the audio output (we release ours). */
+	onReleased: (() => void) | null = null;
 
 	get analyser(): AnalyserNode | null {
 		return this.analyserNode;
@@ -30,6 +34,15 @@ export class SynthEngine {
 
 	ensure(): AudioContext {
 		if (!this.ctx) {
+			// One tab owns the speakers: Safari only routes output for a single
+			// Web Audio context across tabs (the loser still renders — analyser
+			// moves, no sound). Claim on create; other tabs release their context
+			// and re-claim on their next user gesture.
+			this.channel = new BroadcastChannel('supersaw-audio');
+			this.channel.postMessage('claim');
+			this.channel.onmessage = (e) => {
+				if (e.data === 'claim') this.release();
+			};
 			this.ctx = new AudioContext();
 			this.master = this.ctx.createDynamicsCompressor();
 			this.master.connect(this.ctx.destination);
@@ -102,6 +115,18 @@ export class SynthEngine {
 			() => this.scheduled.delete(voice),
 			(when + duration + params.release - ctx.currentTime + 1) * 1000
 		);
+	}
+
+	/** Another tab took the output: tear down so our next gesture re-claims. */
+	private release(): void {
+		this.onReleased?.();
+		this.stopAll();
+		this.channel?.close();
+		this.channel = null;
+		void this.ctx?.close();
+		this.ctx = null;
+		this.master = null;
+		this.analyserNode = null;
 	}
 
 	stopAll(): void {

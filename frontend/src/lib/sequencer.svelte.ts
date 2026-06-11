@@ -31,6 +31,17 @@ function onStep(step: number, time: number): void {
 
 const scheduler = new Scheduler(() => engine.ensure().currentTime, onStep, STEPS);
 
+// Another tab claimed the audio output — stop our transport, otherwise the
+// scheduler's next tick would re-ensure the context and the tabs would fight
+// over the speakers forever.
+engine.onReleased = () => {
+	if (seq.playing) {
+		scheduler.stop();
+		seq.playing = false;
+		seq.currentStep = -1;
+	}
+};
+
 export function togglePlay(): void {
 	if (seq.playing) {
 		scheduler.stop();
