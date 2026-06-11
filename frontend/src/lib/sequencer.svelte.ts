@@ -70,6 +70,15 @@ function onStep(step: number, time: number): void {
 
 const scheduler = new Scheduler(() => engine.ensure().currentTime, onStep, STEPS);
 
+// Hidden tabs get throttled CPU and the supersaw (up to 7 oscs per voice, 8
+// possible rows per step) crackles its way through — stop the transport
+// instead of degrading.
+if (typeof document !== 'undefined') {
+	document.addEventListener('visibilitychange', () => {
+		if (document.hidden && seq.playing) togglePlay();
+	});
+}
+
 // Another tab claimed the audio output — stop our transport, otherwise the
 // scheduler's next tick would re-ensure the context and the tabs would fight
 // over the speakers forever.
