@@ -30,7 +30,8 @@ export class SynthEngine {
 	private scheduled = new Set<Voice>();
 	private bendCents = 0;
 	private channel: BroadcastChannel | null = null;
-	private silentLoop: HTMLAudioElement | null = null;
+	private out: GainNode | null = null;
+	private mediaOut: HTMLAudioElement | null = null;
 	private lfoOsc: OscillatorNode | null = null;
 	private lfoGain: GainNode | null = null;
 	private lfoRate = 0.4;
@@ -65,10 +66,31 @@ export class SynthEngine {
 			this.ctx = new AudioContext();
 			this.master = this.ctx.createDynamicsCompressor();
 			// no direct master→destination wiring: buildLofi owns the output legs
-			// (dry gain + lofi wet chain), crossfaded by setLofi
+			// (dry gain + lofi wet chain), crossfaded into the final `out` node
 			this.analyserNode = this.ctx.createAnalyser();
 			this.analyserNode.fftSize = 2048;
 			this.master.connect(this.analyserNode);
+			// Final output. iOS mutes Web Audio's direct output under the
+			// ring/silent switch, but HTML5 media is exempt — so on iOS the whole
+			// mix routes through an <audio> element (MediaStreamDestination)
+			// instead of ctx.destination. (The old silent-loop "category flip"
+			// hack stopped working on recent iOS.) We're inside the first user
+			// gesture here, so play() is permitted.
+			this.out = this.ctx.createGain();
+			const ios =
+				/iP(hone|ad|od)/.test(navigator.userAgent) ||
+				(navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+			if (ios) {
+				const mediaDest = this.ctx.createMediaStreamDestination();
+				this.out.connect(mediaDest);
+				const el = document.createElement('audio');
+				el.srcObject = mediaDest.stream;
+				el.setAttribute('playsinline', '');
+				void el.play().catch(() => {});
+				this.mediaOut = el;
+			} else {
+				this.out.connect(this.ctx.destination);
+			}
 			// one global LFO, always running; voices tap lfoGain when routed
 			this.lfoOsc = this.ctx.createOscillator();
 			this.lfoGain = this.ctx.createGain();
@@ -76,26 +98,13 @@ export class SynthEngine {
 			this.lfoOsc.start();
 			this.applyLfo();
 			this.buildLofi(this.ctx, this.master);
-			// iOS Safari mutes Web Audio while the ring/silent switch is on —
-			// but not HTML5 media. A playing (silent, looped) <audio> element
-			// flips the audio session to the "playback" category, which ignores
-			// the switch, and Web Audio rides along. We're inside the first user
-			// gesture here, so play() is permitted. Harmlessly inert elsewhere.
-			const silence = document.createElement('audio');
-			silence.loop = true;
-			// minimal valid wav: PCM mono 8kHz, 4 samples of silence
-			silence.src =
-				'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQQAAACAgICA';
-			void silence.play().catch(() => {
-				// autoplay denied (shouldn't happen inside a gesture) — no harm
-			});
-			this.silentLoop = silence;
 			// Safari parks the context as suspended/"interrupted" across system
 			// sleep and tab switches and doesn't always wake it on its own —
-			// kick it whenever the page becomes visible again.
+			// kick context + media element whenever the page becomes visible.
 			document.addEventListener('visibilitychange', () => {
-				if (!document.hidden && this.ctx && this.ctx.state !== 'running') {
-					void this.ctx.resume();
+				if (!document.hidden && this.ctx) {
+					if (this.ctx.state !== 'running') void this.ctx.resume();
+					if (this.mediaOut?.paused) void this.mediaOut.play().catch(() => {});
 				}
 			});
 		}
@@ -218,12 +227,12 @@ export class SynthEngine {
 		crusher.connect(highcut);
 		highcut.connect(lowcut);
 		lowcut.connect(wet);
-		wet.connect(ctx.destination);
+		wet.connect(this.out!);
 		// dry leg is the normal output path; ducks to 0 when the wet path is in
 		const dry = ctx.createGain();
 		dry.gain.value = 1;
 		master.connect(dry);
-		dry.connect(ctx.destination);
+		dry.connect(this.out!);
 
 		// tape hiss bed: looped filtered noise, silent until switched in
 		const noiseBuffer = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
@@ -238,7 +247,7 @@ export class SynthEngine {
 		const hiss = ctx.createGain();
 		hiss.gain.value = 0;
 		noise.connect(hissFilter).connect(hiss);
-		hiss.connect(ctx.destination);
+		hiss.connect(this.out!);
 		noise.start();
 
 		this.lofiNodes = { wobble, dry, wet, hiss };
@@ -331,8 +340,9 @@ export class SynthEngine {
 		this.stopAll();
 		this.channel?.close();
 		this.channel = null;
-		this.silentLoop?.pause();
-		this.silentLoop = null;
+		this.mediaOut?.pause();
+		this.mediaOut = null;
+		this.out = null;
 		void this.ctx?.close();
 		this.ctx = null;
 		this.master = null;
