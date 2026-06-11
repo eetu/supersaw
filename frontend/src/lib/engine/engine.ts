@@ -30,6 +30,7 @@ export class SynthEngine {
 	private scheduled = new Set<Voice>();
 	private bendCents = 0;
 	private channel: BroadcastChannel | null = null;
+	private silentLoop: HTMLAudioElement | null = null;
 	private lfoOsc: OscillatorNode | null = null;
 	private lfoGain: GainNode | null = null;
 	private lfoRate = 0.4;
@@ -75,6 +76,20 @@ export class SynthEngine {
 			this.lfoOsc.start();
 			this.applyLfo();
 			this.buildLofi(this.ctx, this.master);
+			// iOS Safari mutes Web Audio while the ring/silent switch is on —
+			// but not HTML5 media. A playing (silent, looped) <audio> element
+			// flips the audio session to the "playback" category, which ignores
+			// the switch, and Web Audio rides along. We're inside the first user
+			// gesture here, so play() is permitted. Harmlessly inert elsewhere.
+			const silence = document.createElement('audio');
+			silence.loop = true;
+			// minimal valid wav: PCM mono 8kHz, 4 samples of silence
+			silence.src =
+				'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQQAAACAgICA';
+			void silence.play().catch(() => {
+				// autoplay denied (shouldn't happen inside a gesture) — no harm
+			});
+			this.silentLoop = silence;
 			// Safari parks the context as suspended/"interrupted" across system
 			// sleep and tab switches and doesn't always wake it on its own —
 			// kick it whenever the page becomes visible again.
@@ -311,6 +326,8 @@ export class SynthEngine {
 		this.stopAll();
 		this.channel?.close();
 		this.channel = null;
+		this.silentLoop?.pause();
+		this.silentLoop = null;
 		void this.ctx?.close();
 		this.ctx = null;
 		this.master = null;
