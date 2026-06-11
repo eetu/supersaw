@@ -4,7 +4,6 @@
 
 	import { engine } from '$lib/engine/engine';
 	import { clampOctave, KEY_CODES, type Note, noteAt, noteForKey } from '$lib/engine/notes';
-	import { ghostLit } from '$lib/ghost.svelte';
 	import { params } from '$lib/params.svelte';
 
 	// octave is bindable so the panel header (page-level) can host the < > buttons
@@ -95,7 +94,7 @@
 				role="button"
 				tabindex={-1}
 				aria-label={note}
-				class:active={pressed.has(note) || ghostLit.has(note)}
+				class:active={pressed.has(note)}
 				onpointerdown={down(note)}
 				onpointerup={up(note)}
 				onpointerenter={enter(note)}
@@ -108,7 +107,7 @@
 						role="button"
 						tabindex={-1}
 						aria-label={black}
-						class:active={pressed.has(black) || ghostLit.has(black)}
+						class:active={pressed.has(black)}
 						onpointerdown={down(black)}
 						onpointerup={up(black)}
 						onpointerenter={enter(black)}

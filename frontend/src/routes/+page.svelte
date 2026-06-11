@@ -14,16 +14,9 @@
 	import WaveSelect from '$lib/components/WaveSelect.svelte';
 	import { engine, type LfoTarget } from '$lib/engine/engine';
 	import { clampOctave } from '$lib/engine/notes';
-	import { enableGhost, ghost } from '$lib/ghost.svelte';
 	import { params } from '$lib/params.svelte';
 
 	let octave = $state(5);
-
-	// idle ghost player: opt-in, lives with the synth view (cleanup disarms it
-	// on toggle-off, navigation away, or hidden tab — the module flips ghost.on)
-	$effect(() => {
-		if (ghost.on) return enableGhost();
-	});
 
 	// one controls card, tabbed — keeps the keyboard on screen
 	let tab: 'osc' | 'filter' = $state('osc');
@@ -128,9 +121,6 @@
 </section>
 
 <Panel title="keyboard">
-	{#snippet beside()}
-		<FlipSwitch label="ghost" bind:checked={ghost.on} />
-	{/snippet}
 	{#snippet actions()}
 		<TiltBend />
 		<div class="octave">

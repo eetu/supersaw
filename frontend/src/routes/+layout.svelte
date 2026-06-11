@@ -4,6 +4,7 @@
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import Wordmark from '$lib/components/Wordmark.svelte';
+	import { params } from '$lib/params.svelte';
 	import { applyShareHash } from '$lib/share';
 
 	let { children } = $props();
@@ -22,7 +23,7 @@
 	<title>supersaw</title>
 </svelte:head>
 
-<div class="shell" class:wide={page.url.pathname === '/seq'}>
+<div class="shell" class:wide={page.url.pathname === '/seq'} class:lofi={params.lofi}>
 	<header class="top">
 		<Wordmark />
 	</header>
@@ -55,6 +56,28 @@
 		display: flex;
 		flex-direction: column;
 		gap: 1.25rem;
+	}
+	/* lo-fi mode wears an 80s skin: the accent goes neon magenta (every
+	   control, canvas and pad reads it via the CSS var), the page warms up
+	   like aged tape, and a CRT scanline overlay sits on top. */
+	.shell.lofi {
+		--halo-accent: #ff4fa3;
+		--halo-accent-soft: rgba(255, 79, 163, 0.16);
+		filter: sepia(0.22) saturate(1.25) contrast(1.03);
+	}
+	.shell.lofi::after {
+		content: '';
+		position: fixed;
+		inset: 0;
+		z-index: 99;
+		pointer-events: none;
+		background: repeating-linear-gradient(
+			0deg,
+			rgba(0, 0, 0, 0.07) 0,
+			rgba(0, 0, 0, 0.07) 1px,
+			transparent 1px,
+			transparent 3px
+		);
 	}
 	.top {
 		display: flex;
