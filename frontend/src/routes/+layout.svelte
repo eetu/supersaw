@@ -39,6 +39,11 @@
 </div>
 
 <style>
+	/* it's an instrument: no sideways scroll, no rubber-band pull-to-refresh */
+	:global(html, body) {
+		overflow-x: hidden;
+		overscroll-behavior: none;
+	}
 	.shell {
 		max-width: 900px;
 		margin: 0 auto;

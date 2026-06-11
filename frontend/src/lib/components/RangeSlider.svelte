@@ -82,15 +82,17 @@
 		color: var(--halo-text-muted);
 		text-transform: lowercase;
 	}
-	/* Portrait phone: shorter tracks, narrow columns — 7 must fit one row. */
+	/* Portrait phone: short tracks, narrow columns — 7 must fit one row and
+	   the whole synth view must fit the screen without scrolling. */
 	@media (max-width: 640px) and (orientation: portrait) {
 		.slider {
 			width: auto;
 			min-width: 0;
 			flex: 1;
+			gap: 0.3rem;
 		}
 		input {
-			height: 6.5rem;
+			height: 4.5rem;
 		}
 		.name {
 			font-size: 0.65rem;

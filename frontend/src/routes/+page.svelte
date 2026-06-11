@@ -22,10 +22,6 @@
 	// idle ghost player lives with the synth view
 	$effect(() => initGhost());
 
-	// portrait phones: shaping sliders are collapsed by default (CSS shows them
-	// unconditionally on bigger screens, the toggle button only exists there)
-	let showKnobs = $state(false);
-
 	// one controls card, tabbed — keeps the keyboard on screen
 	let tab: 'osc' | 'filter' = $state('osc');
 
@@ -75,14 +71,6 @@
 			<button type="button" class="dice" onclick={randomize} title="randomize controls">
 				<Dices size={20} aria-hidden="true" />
 			</button>
-			<button
-				type="button"
-				class="knob-toggle"
-				aria-expanded={showKnobs}
-				onclick={() => (showKnobs = !showKnobs)}
-			>
-				shaping
-			</button>
 			<FlipSwitch label="lo-fi" bind:checked={params.lofi} />
 			<FlipSwitch label="poly" bind:checked={params.poly} />
 		</div>
@@ -92,7 +80,7 @@
 
 	<div class="sliders">
 		{#if tab === 'osc'}
-			<div class="knobs" class:open={showKnobs}>
+			<div class="knobs">
 				{#if params.wave === 'supersaw'}
 					<RangeSlider label="detune" bind:value={params.detune} step={0.1} />
 					<RangeSlider label="mix" bind:value={params.mix} step={0.1} />
@@ -108,7 +96,7 @@
 				{/if}
 			</div>
 		{:else}
-			<div class="knobs" class:open={showKnobs}>
+			<div class="knobs">
 				<RangeSlider label="cutoff" bind:value={params.cutoff} />
 				<RangeSlider label="res" bind:value={params.resonance} />
 				<RangeSlider label="env" bind:value={params.filterEnv} />
@@ -243,23 +231,6 @@
 		gap: 0.75rem;
 		flex-wrap: wrap;
 	}
-	/* desktop/landscape: sliders always visible, no toggle */
-	.knob-toggle {
-		display: none;
-		font-family: var(--halo-font-heading);
-		font-size: 0.8rem;
-		padding: 0.35rem 0.7rem;
-		border: none;
-		border-radius: var(--halo-radius-pill);
-		background: var(--halo-bg-light);
-		color: var(--halo-text-muted);
-		cursor: pointer;
-		align-self: flex-start;
-	}
-	.knob-toggle[aria-expanded='true'] {
-		background: var(--halo-accent-soft);
-		color: var(--halo-accent);
-	}
 	.lfo-target {
 		display: flex;
 		flex-direction: column;
@@ -332,30 +303,31 @@
 		flex: 1;
 	}
 	/* Portrait phone: scope hops above the sliders full-width (fixed height —
-	   nothing to inherit it from anymore), wheel drops below the keyboard. */
+	   nothing to inherit it from anymore), wheel drops below the keyboard.
+	   Sliders stay visible, just compact: nowrap full-width row, the columns
+	   flex to divide it (shorter tracks come from RangeSlider's own portrait
+	   rules) — the whole synth view fits an iPhone without scrolling. */
 	@media (max-width: 640px) and (orientation: portrait) {
 		.scope {
 			order: -1;
 			flex-basis: 100%;
-			height: 7rem;
+			height: 5rem;
 			min-width: 0;
 		}
 		.kb-row {
 			flex-direction: column-reverse;
 		}
-		.knob-toggle {
-			display: inline-flex;
-		}
 		.knobs {
-			display: none;
-		}
-		.knobs.open {
-			display: flex;
 			gap: 0.3rem;
 			flex-wrap: nowrap;
-			/* span the full card width — the slider columns flex to divide it,
-			   so they grow on wide phones and narrow together on small ones */
 			width: 100%;
+		}
+		.lfo-target {
+			flex-direction: row;
+			width: 100%;
+		}
+		.lfo-target button {
+			flex: 1;
 		}
 	}
 </style>

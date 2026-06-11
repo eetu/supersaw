@@ -130,6 +130,11 @@
 		user-select: none;
 		touch-action: none;
 	}
+	@media (max-width: 640px) and (orientation: portrait) {
+		.keyboard {
+			height: 8.5rem;
+		}
+	}
 	.key {
 		position: relative;
 		flex: 1;
