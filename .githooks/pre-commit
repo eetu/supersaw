@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+set -e
+
+ROOT=$(git rev-parse --show-toplevel)
+STAGED=$(git diff --cached --name-only --diff-filter=ACM)
+
+if [[ -z "$STAGED" ]]; then
+  exit 0
+fi
+
+if echo "$STAGED" | grep -q "^frontend/"; then
+  echo "→ frontend lint + format check..."
+  (cd "$ROOT/frontend" && yarn lint)
+  (cd "$ROOT/frontend" && yarn format)
+fi

@@ -1,0 +1,80 @@
+/* ----------------------------------------------------------------------
+ * halo-design — canonical design tokens for the homebrew app family
+ *
+ * Copied verbatim from the halo-design skill (do not hand-edit; re-copy on
+ * token changes). Imported globally in +layout.svelte; components consume the
+ * --halo-* vars in scoped <style> blocks.
+ * -------------------------------------------------------------------- */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/icon?family=Material+Icons+Outlined');
+
+:root {
+	/* Colors — light theme */
+	--halo-body: #f0f0f0;
+	--halo-bg-main: #ffffff;
+	--halo-bg-light: #fbfbfb;
+	--halo-text-main: #525252;
+	--halo-text-muted: #a0a0a0;
+	--halo-text-light: #e9e9e9;
+	--halo-border: lightgray;
+	--halo-accent: #f78f08; /* the only saturated brand color */
+	--halo-accent-bg: linear-gradient(153deg, rgba(255, 237, 207, 1) 0%, rgba(255, 239, 171, 1) 56%);
+	--halo-accent-soft: rgba(247, 143, 8, 0.1);
+	--halo-off-bg: #d9d9d9;
+	--halo-error: tomato;
+	--halo-connected: #4caf50;
+	--halo-disconnected: #f44336;
+
+	/* Typography */
+	--halo-font-body: 'Inter', system-ui, sans-serif;
+	--halo-font-heading: 'Space Grotesk', 'Inter', sans-serif;
+
+	/* Geometry */
+	--halo-radius: 6px;
+	--halo-radius-pill: 4px;
+	--halo-card-padding: 1.5em;
+
+	/* Shadow (light only) */
+	--halo-shadow: rgba(60, 64, 67, 0.3) 0 1px 2px 0, rgba(60, 64, 67, 0.15) 0 2px 6px 2px;
+
+	/* Motion */
+	--halo-d-fast: 0.15s;
+	--halo-d-med: 0.5s;
+}
+
+@media (prefers-color-scheme: dark) {
+	:root {
+		--halo-body: #0f0f0f;
+		--halo-bg-main: #252525;
+		--halo-bg-light: #1c1c1c;
+		--halo-text-main: #d6d6d6;
+		--halo-text-muted: #8a8a8a;
+		--halo-text-light: #646464;
+		--halo-border: #1f1f1f;
+		--halo-accent-bg: rgba(247, 143, 8, 0.2);
+		--halo-accent-soft: rgba(247, 143, 8, 0.2);
+		--halo-off-bg: #404040;
+		--halo-error: pink;
+		--halo-shadow: none;
+	}
+}
+
+html,
+body {
+	margin: 0;
+	background: var(--halo-body);
+	color: var(--halo-text-main);
+	font-family: var(--halo-font-body);
+}
+
+* {
+	box-sizing: border-box;
+}
+
+.halo-card {
+	background: var(--halo-bg-main);
+	border-radius: var(--halo-radius);
+	padding: var(--halo-card-padding);
+	box-shadow: var(--halo-shadow);
+}

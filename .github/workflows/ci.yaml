@@ -1,0 +1,31 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  frontend:
+    name: "Frontend (Svelte)"
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version-file: frontend/.node-version
+      # Yarn is vendored (.yarn/releases/*.cjs) and invoked via node — no
+      # corepack (node 25+ dropped the bundle), so this is node-version-agnostic
+      # and stays in step with the Dockerfile's node 26 build stage.
+      - name: Frontend checks
+        run: |
+          yarn() { node .yarn/releases/yarn-*.cjs "$@"; }
+          yarn install --immutable
+          yarn lint
+          yarn format
+          yarn typecheck
+          yarn build

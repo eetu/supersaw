@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <!-- Maskable variant: glyph shrunk to the ~60% safe zone so Android's
+       adaptive mask can't clip it. Opaque tile, same family colors. -->
+  <style>
+    @media (prefers-color-scheme: dark) {
+      .tile { fill: #252525; }
+      .stroke { stroke: #f0f0f0; }
+    }
+  </style>
+  <rect class="tile" width="512" height="512" fill="#ffffff" />
+  <g transform="translate(112 112) scale(12)" fill="none" stroke-width="1.4"
+     stroke-linecap="round" stroke-linejoin="round">
+    <rect class="stroke" stroke="#525252" x="2.5" y="4.5" width="19" height="15" rx="2" />
+    <path stroke="#f78f08" d="M6 15.5 10 8.5 V15.5 L14 8.5 V15.5 L18 8.5" />
+  </g>
+</svg>

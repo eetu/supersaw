@@ -1,0 +1,44 @@
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/frontend"
+    schedule:
+      interval: "weekly"
+    cooldown:
+      default-days: 7
+      semver-major-days: 14
+      semver-minor-days: 7
+      semver-patch-days: 5
+    ignore:
+      - dependency-name: "eslint"
+        update-types: ["version-update:semver-major"]
+    groups:
+      svelte:
+        patterns:
+          - "svelte"
+          - "@sveltejs/*"
+          - "svelte-*"
+      vite:
+        patterns:
+          - "vite"
+          - "@vitejs/*"
+      minor-and-patch:
+        update-types:
+          - "minor"
+          - "patch"
+
+  # docker + github-actions only honour `default-days` — the semver-* keys
+  # silently break parsing for these ecosystems, so they're omitted.
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    cooldown:
+      default-days: 7
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    cooldown:
+      default-days: 7
