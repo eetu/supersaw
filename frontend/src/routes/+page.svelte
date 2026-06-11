@@ -46,6 +46,31 @@
 		params.lfoTarget = lfoTargets[Math.floor(r() * lfoTargets.length)];
 	}
 
+	// Easter egg: the T2 lead (Fiedel's Synclavier brass) — tight supersaw,
+	// slow swell, dark filter that opens on attack, mono with a touch of glide.
+	// Only reachable from lo-fi mode; leaves the lo-fi switch itself alone.
+	function t2(): void {
+		Object.assign(params, {
+			wave: 'supersaw',
+			detune: 0.2,
+			mix: 0.9,
+			spread: 0.3,
+			attack: 0.18,
+			decay: 0.3,
+			sustain: 0.85,
+			release: 0.4,
+			distortion: 15,
+			cutoff: 0.45,
+			resonance: 0.2,
+			filterEnv: 0.35,
+			lfoRate: 0.2,
+			lfoDepth: 0.1,
+			lfoTarget: 'filter',
+			poly: false,
+			glide: 0.05
+		});
+	}
+
 	// the LFO is engine-global hardware — push param changes to it live
 	$effect(() => engine.setLfo(params.lfoRate, params.lfoDepth, params.lfoTarget));
 	$effect(() => engine.setLofi(params.lofi));
@@ -64,6 +89,9 @@
 			</button>
 		</nav>
 		<div class="header-actions">
+			{#if params.lofi}
+				<button type="button" class="t2" onclick={t2} title="hasta la vista">t2</button>
+			{/if}
 			<button type="button" class="dice" onclick={randomize} title="randomize controls">
 				<Dices size={20} aria-hidden="true" />
 			</button>
@@ -164,6 +192,21 @@
 		display: flex;
 		align-items: center;
 		gap: 0.75rem;
+	}
+	/* easter egg — T-800 eye red, only alive in lo-fi mode */
+	.t2 {
+		font-family: var(--halo-font-heading);
+		font-size: 0.7rem;
+		padding: 0.25rem 0.5rem;
+		border: none;
+		border-radius: var(--halo-radius-pill);
+		background: var(--halo-bg-light);
+		color: var(--halo-error);
+		cursor: pointer;
+		transition: box-shadow var(--halo-d-fast);
+	}
+	.t2:hover {
+		box-shadow: 0 0 8px 1px rgba(255, 60, 60, 0.45);
 	}
 	.dice {
 		display: inline-flex;
