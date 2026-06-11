@@ -30,6 +30,12 @@ export function frequency(note: Note): number {
 	return A4 * 2 ** (semitonesFromA4 / 12);
 }
 
+// 8 cap: the keyboard's top keys reach one octave above the base, and a
+// two-digit octave ("C10") would break the single-digit note notation.
+export function clampOctave(octave: number): number {
+	return Math.max(0, Math.min(8, octave));
+}
+
 /** Note at chromatic offset `index` from C of the given octave (index may exceed one octave). */
 export function noteAt(index: number, octave: number): Note {
 	const len = NOTE_NAMES.length;

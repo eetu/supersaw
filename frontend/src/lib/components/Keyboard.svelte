@@ -1,20 +1,28 @@
 <script lang="ts">
-	import ChevronLeft from '@lucide/svelte/icons/chevron-left';
-	import ChevronRight from '@lucide/svelte/icons/chevron-right';
+	import { untrack } from 'svelte';
 	import { SvelteSet } from 'svelte/reactivity';
 
 	import { engine } from '$lib/engine/engine';
-	import { KEY_CODES, type Note, noteAt, noteForKey } from '$lib/engine/notes';
+	import { clampOctave, KEY_CODES, type Note, noteAt, noteForKey } from '$lib/engine/notes';
 	import { params } from '$lib/params.svelte';
 
-	let octave = $state(5);
+	// octave is bindable so the panel header (page-level) can host the < > buttons
+	let { octave = $bindable(5) }: { octave?: number } = $props();
 	const pressed = new SvelteSet<Note>();
 
-	// 8 cap: the top keys reach one octave above the base, and a two-digit
-	// octave ("C10") would break the single-digit note notation.
+	// any octave change — keys, arrows, or the external buttons — must release
+	// held notes, else their keyup maps to the wrong name and they stick.
+	// untrack: releaseAll reads `pressed`, which must not re-trigger this.
+	let prevOctave = octave;
+	$effect(() => {
+		if (octave !== prevOctave) {
+			prevOctave = octave;
+			untrack(() => releaseAll());
+		}
+	});
+
 	function setOctave(next: number): void {
-		releaseAll();
-		octave = Math.max(0, Math.min(8, next));
+		octave = clampOctave(next);
 	}
 
 	// 18 qwerty keys = 1.5 chromatic octaves starting at C<octave>
@@ -77,16 +85,6 @@
 
 <svelte:window {onkeydown} {onkeyup} onblur={releaseAll} />
 
-<div class="octave">
-	<button type="button" aria-label="octave down" onclick={() => setOctave(octave - 1)}>
-		<ChevronLeft size={18} aria-hidden="true" />
-	</button>
-	<span>octave {octave}</span>
-	<button type="button" aria-label="octave up" onclick={() => setOctave(octave + 1)}>
-		<ChevronRight size={18} aria-hidden="true" />
-	</button>
-</div>
-
 <div class="keyboard">
 	{#each notes as note, i (note)}
 		{#if !note.includes('#')}
@@ -124,33 +122,6 @@
 </div>
 
 <style>
-	.octave {
-		display: flex;
-		align-items: center;
-		gap: 0.25rem;
-		margin-bottom: 0.5rem;
-		font-family: var(--halo-font-heading);
-		font-size: 0.8rem;
-		color: var(--halo-text-muted);
-		font-variant-numeric: tabular-nums;
-	}
-	.octave button {
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		min-width: 2.2rem;
-		min-height: 2rem;
-		padding: 0;
-		border: none;
-		border-radius: var(--halo-radius-pill);
-		background: var(--halo-bg-light);
-		color: var(--halo-text-muted);
-		cursor: pointer;
-		transition: color var(--halo-d-fast);
-	}
-	.octave button:hover {
-		color: var(--halo-accent);
-	}
 	.keyboard {
 		display: flex;
 		gap: 0.2rem;

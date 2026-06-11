@@ -1,4 +1,6 @@
 <script lang="ts">
+	import ChevronLeft from '@lucide/svelte/icons/chevron-left';
+	import ChevronRight from '@lucide/svelte/icons/chevron-right';
 	import Dices from '@lucide/svelte/icons/dices';
 
 	import Analyser from '$lib/components/Analyser.svelte';
@@ -10,7 +12,10 @@
 	import VuMeter from '$lib/components/VuMeter.svelte';
 	import WaveSelect from '$lib/components/WaveSelect.svelte';
 	import { engine, type LfoTarget } from '$lib/engine/engine';
+	import { clampOctave } from '$lib/engine/notes';
 	import { params } from '$lib/params.svelte';
+
+	let octave = $state(5);
 
 	// portrait phones: shaping sliders are collapsed by default (CSS shows them
 	// unconditionally on bigger screens, the toggle button only exists there)
@@ -127,9 +132,28 @@
 </section>
 
 <Panel title="keyboard">
+	{#snippet actions()}
+		<div class="octave">
+			<button
+				type="button"
+				aria-label="octave down"
+				onclick={() => (octave = clampOctave(octave - 1))}
+			>
+				<ChevronLeft size={18} aria-hidden="true" />
+			</button>
+			<span>octave {octave}</span>
+			<button
+				type="button"
+				aria-label="octave up"
+				onclick={() => (octave = clampOctave(octave + 1))}
+			>
+				<ChevronRight size={18} aria-hidden="true" />
+			</button>
+		</div>
+	{/snippet}
 	<div class="kb-row">
 		<PitchWheel />
-		<div class="kb"><Keyboard /></div>
+		<div class="kb"><Keyboard bind:octave /></div>
 	</div>
 </Panel>
 
@@ -254,6 +278,32 @@
 	}
 	.lfo-target button.active {
 		background: var(--halo-accent-soft);
+		color: var(--halo-accent);
+	}
+	.octave {
+		display: flex;
+		align-items: center;
+		gap: 0.25rem;
+		font-family: var(--halo-font-heading);
+		font-size: 0.8rem;
+		color: var(--halo-text-muted);
+		font-variant-numeric: tabular-nums;
+	}
+	.octave button {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		min-width: 2.2rem;
+		min-height: 2rem;
+		padding: 0;
+		border: none;
+		border-radius: var(--halo-radius-pill);
+		background: var(--halo-bg-light);
+		color: var(--halo-text-muted);
+		cursor: pointer;
+		transition: color var(--halo-d-fast);
+	}
+	.octave button:hover {
 		color: var(--halo-accent);
 	}
 	.kb-row {
