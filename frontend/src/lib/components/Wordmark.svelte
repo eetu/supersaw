@@ -23,7 +23,7 @@
 	<span>super<span class="accent">saw</span></span>
 	<!-- Saw (2004) riff, family voice — collapses to the bare wordmark on
 	     narrow screens. See the supersaw-design skill. -->
-	<span class="riff">i want to play a game.</span>
+	<span class="riff">i want to play a tune.</span>
 </span>
 
 <style>

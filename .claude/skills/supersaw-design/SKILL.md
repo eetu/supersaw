@@ -23,9 +23,9 @@ with `frontend/scripts/gen-icons.sh`).
 
 ## Wordmark
 
-`super<span class="accent">saw</span>` — riff: **"i want to play a game."**
-(Saw, 2004 — it is also, literally, a synth you play). Riff collapses below
-520px.
+`super<span class="accent">saw</span>` — riff: **"i want to play a tune."**
+(Saw, 2004, one word off — it is also, literally, a synth you play). Riff
+collapses below 520px.
 
 ## Layout / density
 
