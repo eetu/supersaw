@@ -129,8 +129,10 @@
 </section>
 
 <Panel title="keyboard">
-	{#snippet actions()}
+	{#snippet beside()}
 		<FlipSwitch label="ghost" bind:checked={ghostOn} />
+	{/snippet}
+	{#snippet actions()}
 		<TiltBend />
 		<div class="octave">
 			<button

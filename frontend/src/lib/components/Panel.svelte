@@ -3,10 +3,13 @@
 
 	let {
 		title,
+		beside,
 		actions,
 		children
 	}: {
 		title: string;
+		/** rendered right next to the title (e.g. a small toggle) */
+		beside?: Snippet;
 		actions?: Snippet;
 		children: Snippet;
 	} = $props();
@@ -14,7 +17,10 @@
 
 <section class="halo-card panel">
 	<header>
-		<h2>{title}</h2>
+		<div class="title">
+			<h2>{title}</h2>
+			{#if beside}{@render beside()}{/if}
+		</div>
 		{#if actions}
 			<div class="actions">{@render actions()}</div>
 		{/if}
@@ -50,6 +56,11 @@
 		.actions {
 			width: 100%;
 		}
+	}
+	.title {
+		display: flex;
+		align-items: center;
+		gap: 1rem;
 	}
 	h2 {
 		margin: 0;

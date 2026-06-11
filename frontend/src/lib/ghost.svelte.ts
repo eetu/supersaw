@@ -72,9 +72,10 @@ function onActivity(): void {
 	arm();
 }
 
-/** Enable idle-watching; returns a cleanup for the page's $effect. */
+/** Enable: plays immediately; user input silences it and re-arms the idle
+ * timer. Returns a cleanup for the page's $effect. */
 export function enableGhost(): () => void {
-	arm();
+	startPlaying();
 	// capture phase: nothing in the app can stopPropagation its way past the
 	// kill switch — any interaction must silence the ghost
 	window.addEventListener('pointerdown', onActivity, true);
