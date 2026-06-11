@@ -40,6 +40,7 @@ export class SynthEngine {
 	private lofiNodes: { wobble: GainNode; dry: GainNode; wet: GainNode; hiss: GainNode } | null =
 		null;
 	private lofiOn = false;
+	private bornAt = 0;
 
 	/** Fired when another tab claims the audio output (we release ours). */
 	onReleased: (() => void) | null = null;
@@ -64,6 +65,7 @@ export class SynthEngine {
 				if (e.data === 'claim') this.release();
 			};
 			this.ctx = new AudioContext();
+			this.bornAt = performance.now();
 			this.master = this.ctx.createDynamicsCompressor();
 			// no direct master→destination wiring: buildLofi owns the output legs
 			// (dry gain + lofi wet chain), crossfaded into the final `out` node
@@ -112,9 +114,18 @@ export class SynthEngine {
 		return this.ctx;
 	}
 
+	/**
+	 * Cold-start pad: notes triggered in the same gesture that builds the
+	 * context (+ the iOS media-element output) would sound while the path is
+	 * still opening and get eaten — delay them just past the warm-up.
+	 */
+	private startDelay(): number {
+		return performance.now() - this.bornAt < 400 ? 0.12 : 0;
+	}
+
 	noteOn(note: Note, params: SynthParams): void {
 		const ctx = this.ensure();
-		const now = ctx.currentTime;
+		const now = ctx.currentTime + this.startDelay();
 		const freq = frequency(note);
 
 		if (!params.poly) {
@@ -159,7 +170,7 @@ export class SynthEngine {
 
 	padOn(id: number, freq: number, params: VoiceParams): void {
 		const ctx = this.ensure();
-		const now = ctx.currentTime;
+		const now = ctx.currentTime + this.startDelay();
 		const key = `${PAD_VOICE}:${id}`;
 		this.voices.get(key)?.stop(now);
 		this.voices.set(key, this.createVoice(ctx, freq, params, now));
