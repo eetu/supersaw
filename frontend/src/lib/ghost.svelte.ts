@@ -5,9 +5,10 @@ import type { Note } from './engine/notes.ts';
 import { params } from './params.svelte.ts';
 import { seq } from './sequencer.svelte.ts';
 
-// Ghost player: after 30s of idle the synth noodles on its own — a lazy random
-// walk on the pentatonic. Any user input silences it instantly. Demo mode that
-// sells itself; the keyboard lights the notes it plays via `ghostLit`.
+// Ghost player: opt-in (toggle on the synth view). While enabled, 30s of idle
+// starts a lazy random walk on the pentatonic; any user input silences it
+// instantly and re-arms the timer. The keyboard lights the notes it plays via
+// `ghostLit`.
 
 const SCALE: Note[] = ['C4', 'D#4', 'F4', 'G4', 'A#4', 'C5', 'D#5', 'F5', 'G5', 'A#5', 'C6'];
 const IDLE_MS = 30_000;
@@ -71,18 +72,20 @@ function onActivity(): void {
 	arm();
 }
 
-/** Start idle-watching; returns a cleanup for the page's $effect. */
-export function initGhost(): () => void {
+/** Enable idle-watching; returns a cleanup for the page's $effect. */
+export function enableGhost(): () => void {
 	arm();
-	window.addEventListener('pointerdown', onActivity);
-	window.addEventListener('keydown', onActivity);
-	window.addEventListener('wheel', onActivity);
+	// capture phase: nothing in the app can stopPropagation its way past the
+	// kill switch — any interaction must silence the ghost
+	window.addEventListener('pointerdown', onActivity, true);
+	window.addEventListener('keydown', onActivity, true);
+	window.addEventListener('wheel', onActivity, true);
 	return () => {
 		stopPlaying();
 		if (idleTimer) clearTimeout(idleTimer);
 		idleTimer = null;
-		window.removeEventListener('pointerdown', onActivity);
-		window.removeEventListener('keydown', onActivity);
-		window.removeEventListener('wheel', onActivity);
+		window.removeEventListener('pointerdown', onActivity, true);
+		window.removeEventListener('keydown', onActivity, true);
+		window.removeEventListener('wheel', onActivity, true);
 	};
 }
