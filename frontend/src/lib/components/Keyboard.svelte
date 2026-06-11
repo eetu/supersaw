@@ -1,4 +1,6 @@
 <script lang="ts">
+	import ChevronLeft from '@lucide/svelte/icons/chevron-left';
+	import ChevronRight from '@lucide/svelte/icons/chevron-right';
 	import { SvelteSet } from 'svelte/reactivity';
 
 	import { engine } from '$lib/engine/engine';
@@ -7,6 +9,13 @@
 
 	let octave = $state(5);
 	const pressed = new SvelteSet<Note>();
+
+	// 8 cap: the top keys reach one octave above the base, and a two-digit
+	// octave ("C10") would break the single-digit note notation.
+	function setOctave(next: number): void {
+		releaseAll();
+		octave = Math.max(0, Math.min(8, next));
+	}
 
 	// 18 qwerty keys = 1.5 chromatic octaves starting at C<octave>
 	const notes = $derived(KEY_CODES.map((_, i) => noteAt(i, octave)));
@@ -30,8 +39,7 @@
 	function onkeydown(e: KeyboardEvent): void {
 		if (e.repeat || e.metaKey || e.ctrlKey || e.altKey) return;
 		if (/^Digit\d$/.test(e.code)) {
-			releaseAll();
-			octave = Number(e.code.slice(5));
+			setOctave(Number(e.code.slice(5)));
 			return;
 		}
 		const note = noteForKey(e.code, octave);
@@ -60,6 +68,16 @@
 </script>
 
 <svelte:window {onkeydown} {onkeyup} onblur={releaseAll} />
+
+<div class="octave">
+	<button type="button" aria-label="octave down" onclick={() => setOctave(octave - 1)}>
+		<ChevronLeft size={18} aria-hidden="true" />
+	</button>
+	<span>octave {octave}</span>
+	<button type="button" aria-label="octave up" onclick={() => setOctave(octave + 1)}>
+		<ChevronRight size={18} aria-hidden="true" />
+	</button>
+</div>
 
 <div class="keyboard">
 	{#each notes as note, i (note)}
@@ -98,6 +116,33 @@
 </div>
 
 <style>
+	.octave {
+		display: flex;
+		align-items: center;
+		gap: 0.25rem;
+		margin-bottom: 0.5rem;
+		font-family: var(--halo-font-heading);
+		font-size: 0.8rem;
+		color: var(--halo-text-muted);
+		font-variant-numeric: tabular-nums;
+	}
+	.octave button {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		min-width: 2.2rem;
+		min-height: 2rem;
+		padding: 0;
+		border: none;
+		border-radius: var(--halo-radius-pill);
+		background: var(--halo-bg-light);
+		color: var(--halo-text-muted);
+		cursor: pointer;
+		transition: color var(--halo-d-fast);
+	}
+	.octave button:hover {
+		color: var(--halo-accent);
+	}
 	.keyboard {
 		display: flex;
 		gap: 0.2rem;
