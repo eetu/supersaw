@@ -1,4 +1,6 @@
 <script lang="ts">
+	import Dices from '@lucide/svelte/icons/dices';
+
 	import Analyser from '$lib/components/Analyser.svelte';
 	import FlipSwitch from '$lib/components/FlipSwitch.svelte';
 	import Keyboard from '$lib/components/Keyboard.svelte';
@@ -60,7 +62,7 @@
 		</nav>
 		<div class="header-actions">
 			<button type="button" class="dice" onclick={randomize} title="randomize controls">
-				<span class="material-icons-outlined">casino</span>
+				<Dices size={20} aria-hidden="true" />
 			</button>
 			<button
 				type="button"
@@ -166,9 +168,6 @@
 	}
 	.dice:active {
 		transform: rotate(72deg);
-	}
-	.dice .material-icons-outlined {
-		font-size: 1.25rem;
 	}
 	/* in-card tabs echo the top nav: underline, accent when active */
 	.ctl-tabs {

@@ -29,5 +29,8 @@
 		"typescript": "^6.0.2",
 		"vite": "^8.0.16"
 	},
-	"packageManager": "yarn@4.16.0"
+	"packageManager": "yarn@4.16.0",
+	"dependencies": {
+		"@lucide/svelte": "^1.17.0"
+	}
 }

@@ -318,6 +318,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@lucide/svelte@npm:^1.17.0":
+  version: 1.17.0
+  resolution: "@lucide/svelte@npm:1.17.0"
+  peerDependencies:
+    svelte: ^5
+  checksum: 10/3252b9520c3c85eaaaefba9296798ea1df7fc55a4c346e0912f9996329d72ede1fa5e701de56a5da2e625c6965821f4f4b8be805dcfbe275183e22863644275c
+  languageName: node
+  linkType: hard
+
 "@napi-rs/wasm-runtime@npm:^1.1.4":
   version: 1.1.4
   resolution: "@napi-rs/wasm-runtime@npm:1.1.4"
@@ -2054,6 +2063,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "supersaw-frontend@workspace:."
   dependencies:
+    "@lucide/svelte": "npm:^1.17.0"
     "@sveltejs/adapter-static": "npm:^3.0.10"
     "@sveltejs/kit": "npm:^2.57.0"
     "@sveltejs/vite-plugin-svelte": "npm:^7.0.0"
