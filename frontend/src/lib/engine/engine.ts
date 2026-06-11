@@ -145,29 +145,34 @@ export class SynthEngine {
 		return mods;
 	}
 
-	// --- theremin pad: one continuous voice with direct frequency control ---
+	// --- theremin pad: continuous voices with direct frequency control,
+	//     one per touch (keyed by pointerId for multitouch) ---
 
-	padOn(freq: number, params: VoiceParams): void {
+	padOn(id: number, freq: number, params: VoiceParams): void {
 		const ctx = this.ensure();
 		const now = ctx.currentTime;
-		this.voices.get(PAD_VOICE)?.stop(now);
-		this.voices.set(PAD_VOICE, this.createVoice(ctx, freq, params, now));
+		const key = `${PAD_VOICE}:${id}`;
+		this.voices.get(key)?.stop(now);
+		this.voices.set(key, this.createVoice(ctx, freq, params, now));
 	}
 
-	padGlide(freq: number): void {
+	padGlide(id: number, freq: number): void {
 		if (!this.ctx) return;
-		this.voices.get(PAD_VOICE)?.setFrequency(freq, 0.04, this.ctx.currentTime);
+		this.voices.get(`${PAD_VOICE}:${id}`)?.setFrequency(freq, 0.04, this.ctx.currentTime);
 	}
 
-	padFilter(cutoff: number, resonance: number, sustain: number): void {
+	padFilter(id: number, cutoff: number, resonance: number, sustain: number): void {
 		if (!this.ctx) return;
-		this.voices.get(PAD_VOICE)?.setFilter(cutoff, resonance, 0, sustain, this.ctx.currentTime);
+		this.voices
+			.get(`${PAD_VOICE}:${id}`)
+			?.setFilter(cutoff, resonance, 0, sustain, this.ctx.currentTime);
 	}
 
-	padOff(): void {
+	padOff(id: number): void {
 		if (!this.ctx) return;
-		this.voices.get(PAD_VOICE)?.stop(this.ctx.currentTime);
-		this.voices.delete(PAD_VOICE);
+		const key = `${PAD_VOICE}:${id}`;
+		this.voices.get(key)?.stop(this.ctx.currentTime);
+		this.voices.delete(key);
 	}
 
 	/**

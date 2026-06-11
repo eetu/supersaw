@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { SvelteMap } from 'svelte/reactivity';
+
 	import FlipSwitch from '$lib/components/FlipSwitch.svelte';
 	import Panel from '$lib/components/Panel.svelte';
 	import { engine } from '$lib/engine/engine';
@@ -6,15 +8,13 @@
 	import { params } from '$lib/params.svelte';
 
 	// Theremin surface: x = pitch over two octaves (quantized to the pentatonic
-	// or continuous), y = filter cutoff. One continuous voice via the engine's
-	// pad API — shares the synth tab's sound like everything else.
+	// or continuous), y = filter cutoff. Multitouch: one continuous voice per
+	// finger (pointerId-keyed) — chords by hand. Shares the synth tab's sound.
 
 	const SCALE: Note[] = ['C4', 'D#4', 'F4', 'G4', 'A#4', 'C5', 'D#5', 'F5', 'G5', 'A#5', 'C6'];
 
 	let quantize = $state(true);
-	let active = $state(false);
-	let x = $state(0.5);
-	let y = $state(0.3);
+	const touches = new SvelteMap<number, { x: number; y: number }>();
 
 	function freqAt(fx: number): number {
 		if (quantize) return frequency(SCALE[Math.round(fx * (SCALE.length - 1))]);
@@ -35,25 +35,21 @@
 	function down(e: PointerEvent): void {
 		(e.currentTarget as Element).setPointerCapture(e.pointerId);
 		const { fx, fy } = pos(e);
-		x = fx;
-		y = fy;
-		engine.padOn(freqAt(fx), { ...params, cutoff: cutoffAt(fy) });
-		active = true;
+		touches.set(e.pointerId, { x: fx, y: fy });
+		engine.padOn(e.pointerId, freqAt(fx), { ...params, cutoff: cutoffAt(fy) });
 	}
 
 	function move(e: PointerEvent): void {
-		if (!active) return;
+		if (!touches.has(e.pointerId)) return;
 		const { fx, fy } = pos(e);
-		x = fx;
-		y = fy;
-		engine.padGlide(freqAt(fx));
-		engine.padFilter(cutoffAt(fy), params.resonance, params.sustain);
+		touches.set(e.pointerId, { x: fx, y: fy });
+		engine.padGlide(e.pointerId, freqAt(fx));
+		engine.padFilter(e.pointerId, cutoffAt(fy), params.resonance, params.sustain);
 	}
 
-	function up(): void {
-		if (!active) return;
-		engine.padOff();
-		active = false;
+	function up(e: PointerEvent): void {
+		if (!touches.delete(e.pointerId)) return;
+		engine.padOff(e.pointerId);
 	}
 </script>
 
@@ -73,7 +69,9 @@
 		onpointerup={up}
 		onpointercancel={up}
 	>
-		<div class="dot" class:on={active} style:left="{x * 100}%" style:top="{y * 100}%"></div>
+		{#each touches as [id, t] (id)}
+			<div class="dot on" style:left="{t.x * 100}%" style:top="{t.y * 100}%"></div>
+		{/each}
 	</div>
 </Panel>
 
