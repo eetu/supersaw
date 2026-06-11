@@ -44,9 +44,12 @@
 			</label>
 			<button
 				type="button"
-				class="ghost"
+				class="ghost life"
 				class:lit={seq.evolve}
 				aria-pressed={seq.evolve}
+				style:--p="{seq.evolve && seq.playing
+					? ((seq.currentStep + 1) / seq.grid[0].length) * 100
+					: 0}%"
 				onclick={() => (seq.evolve = !seq.evolve)}
 				title="grid evolves by Conway's rules every loop"
 			>
@@ -155,8 +158,22 @@
 	.ghost:hover {
 		color: var(--halo-text-main);
 	}
+	/* countdown to the next generation: the button fills over one loop.
+	   @property makes --p interpolable so the 16 step jumps glide. */
+	@property --p {
+		syntax: '<percentage>';
+		inherits: false;
+		initial-value: 0%;
+	}
+	.life {
+		transition: --p 0.15s linear;
+	}
 	.ghost.lit {
-		background: var(--halo-accent-soft);
+		background: linear-gradient(
+			90deg,
+			var(--halo-accent-soft) var(--p, 0%),
+			var(--halo-bg-light) var(--p, 0%)
+		);
 		color: var(--halo-accent);
 	}
 	.play {
