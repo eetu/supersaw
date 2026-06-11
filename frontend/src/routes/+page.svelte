@@ -69,6 +69,8 @@
 			poly: false,
 			glide: 0.05
 		});
+		// the theme sits low — D-F-E-D around octave 4
+		octave = 4;
 	}
 
 	// the LFO is engine-global hardware — push param changes to it live
