@@ -4,10 +4,19 @@
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import Wordmark from '$lib/components/Wordmark.svelte';
+	import { engine } from '$lib/engine/engine';
 	import { params } from '$lib/params.svelte';
 	import { applyShareHash } from '$lib/share';
 
 	let { children } = $props();
+
+	// Warm the audio path on ANY touch, not the first note: building the
+	// context + (on iOS) the media-element output mid-note swallows that
+	// note's envelope — the "first press is silent" effect. ensure() is
+	// idempotent and near-free once built, so capture-phase every time.
+	function warmAudio(): void {
+		engine.ensure();
+	}
 
 	// shared pattern/patch links carry state in the hash — apply once on boot
 	$effect(() => applyShareHash());
@@ -18,6 +27,8 @@
 		{ href: '/pad', label: 'pad' }
 	] as const;
 </script>
+
+<svelte:window onpointerdowncapture={warmAudio} onkeydowncapture={warmAudio} />
 
 <svelte:head>
 	<title>supersaw</title>
