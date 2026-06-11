@@ -1,3 +1,5 @@
+import process from 'node:process';
+
 import adapter from '@sveltejs/adapter-static';
 
 /** @type {import('@sveltejs/kit').Config} */
@@ -7,6 +9,11 @@ const config = {
 		runes: ({ filename }) => (filename.split(/[/\\]/).includes('node_modules') ? undefined : true)
 	},
 	kit: {
+		// Base path override for the GitHub Pages live demo (served under
+		// /supersaw). Unset for the real build — nginx serves from the root.
+		paths: {
+			base: process.env.BASE_PATH ?? ''
+		},
 		// Pure SPA: no server-side logic (no +*.server.ts / +server.ts). The Rust
 		// backend embeds this and serves the fallback for every unmatched path, so
 		// client-side routing + a hard refresh both work. Output to dist/ to match
