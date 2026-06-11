@@ -396,11 +396,24 @@ export class SynthEngine {
 		for (const voice of this.scheduled) voice.bend(this.bendCents, now);
 	}
 
-	noteOff(note: Note, params: SynthParams): void {
+	noteOff(note: Note, _params: SynthParams): void {
 		if (!this.ctx) return;
-		const id = params.poly ? note : MONO_VOICE;
-		this.voices.get(id)?.stop(this.ctx.currentTime);
-		this.voices.delete(id);
+		const now = this.ctx.currentTime;
+		// Stop whichever voice actually rings, regardless of the CURRENT poly
+		// flag — toggling poly mid-hold otherwise releases the wrong id and the
+		// voice rings forever. The keyboard only calls noteOff for the mono
+		// voice when the last key lifts, so the fallback is safe.
+		const direct = this.voices.get(note);
+		if (direct) {
+			direct.stop(now);
+			this.voices.delete(note);
+			return;
+		}
+		const mono = this.voices.get(MONO_VOICE);
+		if (mono) {
+			mono.stop(now);
+			this.voices.delete(MONO_VOICE);
+		}
 	}
 
 	/** Schedule a one-shot note (sequencer): starts at `when`, releases after `duration`. */
@@ -447,3 +460,10 @@ export class SynthEngine {
 }
 
 export const engine = new SynthEngine();
+
+// Vite HMR replaces this module but the old AudioContext (and any ringing
+// voices) would survive it — the classic dev-mode stuck note. Kill everything
+// on dispose; the next gesture rebuilds.
+if (import.meta.hot) {
+	import.meta.hot.dispose(() => engine.stopAll());
+}

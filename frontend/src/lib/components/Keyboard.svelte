@@ -25,6 +25,10 @@
 		octave = clampOctave(next);
 	}
 
+	// component teardown (navigation, HMR swap) must release held notes — the
+	// new instance gets a fresh `pressed` set and could never stop them
+	$effect(() => () => releaseAll());
+
 	// 18 qwerty keys = 1.5 chromatic octaves starting at C<octave>
 	const notes = $derived(KEY_CODES.map((_, i) => noteAt(i, octave)));
 
@@ -46,6 +50,12 @@
 
 	function onkeydown(e: KeyboardEvent): void {
 		if (e.repeat || e.metaKey || e.ctrlKey || e.altKey) return;
+		// panic button: kill every voice, however it got stuck
+		if (e.code === 'Escape') {
+			pressed.clear();
+			engine.stopAll();
+			return;
+		}
 		if (/^Digit\d$/.test(e.code)) {
 			setOctave(Number(e.code.slice(5)));
 			return;
