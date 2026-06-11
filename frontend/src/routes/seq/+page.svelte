@@ -1,7 +1,28 @@
 <script lang="ts">
 	import Panel from '$lib/components/Panel.svelte';
 	import { clearGrid, ROWS, seq, togglePlay } from '$lib/sequencer.svelte';
+
+	// Drag-to-draw: pointerdown picks the brush value (inverse of the hit pad),
+	// dragging paints it across pads. null = not painting.
+	let brush: boolean | null = null;
+
+	const padDown = (r: number, s: number) => (e: PointerEvent) => {
+		// release the implicit capture so pointerenter fires on other pads
+		(e.target as Element).releasePointerCapture(e.pointerId);
+		brush = !seq.grid[r][s];
+		seq.grid[r][s] = brush;
+	};
+	const padEnter = (r: number, s: number) => (e: PointerEvent) => {
+		if (brush !== null && e.buttons) seq.grid[r][s] = brush;
+	};
+	// keyboard activation still toggles (click with detail 0 = Enter/Space);
+	// pointer clicks already handled that on pointerdown
+	const padKey = (r: number, s: number) => (e: MouseEvent) => {
+		if (e.detail === 0) seq.grid[r][s] = !seq.grid[r][s];
+	};
 </script>
+
+<svelte:window onpointerup={() => (brush = null)} onblur={() => (brush = null)} />
 
 <Panel title="sequencer">
 	{#snippet actions()}
@@ -30,7 +51,9 @@
 						class:playing={seq.playing && s === seq.currentStep}
 						aria-label="{ROWS[r]} step {s + 1}"
 						aria-pressed={on}
-						onclick={() => (seq.grid[r][s] = !on)}
+						onpointerdown={padDown(r, s)}
+						onpointerenter={padEnter(r, s)}
+						onclick={padKey(r, s)}
 					></button>
 				{/each}
 			{/each}
@@ -155,6 +178,8 @@
 		background: #2b2b2b;
 		box-shadow: inset 0 0 6px rgba(255, 255, 255, 0.05);
 		cursor: pointer;
+		/* drag paints pads, not scrolls — same deal as the keyboard */
+		touch-action: none;
 		transition:
 			background var(--halo-d-fast),
 			box-shadow var(--halo-d-fast);
