@@ -56,7 +56,7 @@
 
 	// the LFO is engine-global hardware — push param changes to it live
 	$effect(() => engine.setLfo(params.lfoRate, params.lfoDepth, params.lfoTarget));
-	$effect(() => engine.setTape(params.tape));
+	$effect(() => engine.setLofi(params.lofi));
 	// filter knobs retarget already-sounding voices too
 	$effect(() =>
 		engine.setFilter(params.cutoff, params.resonance, params.filterEnv, params.sustain)
@@ -83,7 +83,7 @@
 			>
 				shaping
 			</button>
-			<FlipSwitch label="tape" bind:checked={params.tape} />
+			<FlipSwitch label="lo-fi" bind:checked={params.lofi} />
 			<FlipSwitch label="poly" bind:checked={params.poly} />
 		</div>
 	</header>

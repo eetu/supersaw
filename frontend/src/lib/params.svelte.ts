@@ -20,5 +20,5 @@ export const params: SynthParams = $state({
 	lfoRate: 0.4,
 	lfoDepth: 0,
 	lfoTarget: 'off',
-	tape: false
+	lofi: false
 });

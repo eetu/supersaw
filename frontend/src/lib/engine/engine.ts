@@ -12,8 +12,8 @@ export type SynthParams = VoiceParams & {
 	/** LFO depth 0..1 */
 	lfoDepth: number;
 	lfoTarget: LfoTarget;
-	/** tape mode: wow+flutter pitch wobble */
-	tape: boolean;
+	/** lo-fi mode: tape wobble + bitcrush + bandwidth cut + hiss */
+	lofi: boolean;
 };
 
 const MONO_VOICE = 'mono';
@@ -35,8 +35,9 @@ export class SynthEngine {
 	private lfoRate = 0.4;
 	private lfoDepth = 0;
 	private lfoTarget: LfoTarget = 'off';
-	private tapeNodes: { wow: OscillatorNode; flutter: OscillatorNode; out: GainNode } | null = null;
-	private tapeOn = false;
+	private lofiNodes: { wobble: GainNode; dry: GainNode; wet: GainNode; hiss: GainNode } | null =
+		null;
+	private lofiOn = false;
 
 	/** Fired when another tab claims the audio output (we release ours). */
 	onReleased: (() => void) | null = null;
@@ -62,7 +63,8 @@ export class SynthEngine {
 			};
 			this.ctx = new AudioContext();
 			this.master = this.ctx.createDynamicsCompressor();
-			this.master.connect(this.ctx.destination);
+			// no direct master→destination wiring: buildLofi owns the output legs
+			// (dry gain + lofi wet chain), crossfaded by setLofi
 			this.analyserNode = this.ctx.createAnalyser();
 			this.analyserNode.fftSize = 2048;
 			this.master.connect(this.analyserNode);
@@ -72,24 +74,7 @@ export class SynthEngine {
 			this.lfoOsc.connect(this.lfoGain);
 			this.lfoOsc.start();
 			this.applyLfo();
-			// tape wobble: wow (slow, deep) + flutter (fast, shallow) summed into
-			// one cents-bus that every voice's pitch listens to; the output gain
-			// is the on/off switch so routing never changes
-			const wow = this.ctx.createOscillator();
-			wow.frequency.value = 0.6;
-			const wowDepth = this.ctx.createGain();
-			wowDepth.gain.value = 9;
-			const flutter = this.ctx.createOscillator();
-			flutter.frequency.value = 6.3;
-			const flutterDepth = this.ctx.createGain();
-			flutterDepth.gain.value = 2.5;
-			const out = this.ctx.createGain();
-			out.gain.value = this.tapeOn ? 1 : 0;
-			wow.connect(wowDepth).connect(out);
-			flutter.connect(flutterDepth).connect(out);
-			wow.start();
-			flutter.start();
-			this.tapeNodes = { wow, flutter, out };
+			this.buildLofi(this.ctx, this.master);
 			// Safari parks the context as suspended/"interrupted" across system
 			// sleep and tab switches and doesn't always wake it on its own —
 			// kick it whenever the page becomes visible again.
@@ -140,8 +125,8 @@ export class SynthEngine {
 		if (this.lfoTarget !== 'off' && this.lfoGain) {
 			mods.push({ node: this.lfoGain, target: this.lfoTarget });
 		}
-		// tape bus is always wired (its gain is the switch)
-		if (this.tapeNodes) mods.push({ node: this.tapeNodes.out, target: 'pitch' });
+		// lofi wobble bus is always wired (its gain is the switch)
+		if (this.lofiNodes) mods.push({ node: this.lofiNodes.wobble, target: 'pitch' });
 		return mods;
 	}
 
@@ -170,12 +155,89 @@ export class SynthEngine {
 		this.voices.delete(PAD_VOICE);
 	}
 
-	/** Tape mode: wow+flutter pitch wobble on everything, lofi in one switch. */
-	setTape(on: boolean): void {
-		this.tapeOn = on;
-		if (this.ctx && this.tapeNodes) {
-			this.tapeNodes.out.gain.setTargetAtTime(on ? 1 : 0, this.ctx.currentTime, 0.1);
+	/**
+	 * Lo-fi section: tape wow+flutter on every voice's pitch, plus a master
+	 * wet path (bitcrush → bandwidth cut) crossfaded against the dry signal,
+	 * and a hiss bed. All gains are the switch — routing never changes.
+	 */
+	private buildLofi(ctx: AudioContext, master: DynamicsCompressorNode): void {
+		// pitch wobble: wow (slow, deep) + flutter (fast, shallow) → cents bus
+		const wow = ctx.createOscillator();
+		wow.frequency.value = 0.6;
+		const wowDepth = ctx.createGain();
+		wowDepth.gain.value = 9;
+		const flutter = ctx.createOscillator();
+		flutter.frequency.value = 6.3;
+		const flutterDepth = ctx.createGain();
+		flutterDepth.gain.value = 2.5;
+		const wobble = ctx.createGain();
+		wobble.gain.value = 0;
+		wow.connect(wowDepth).connect(wobble);
+		flutter.connect(flutterDepth).connect(wobble);
+		wow.start();
+		flutter.start();
+
+		// master wet path: bitcrush (stepped waveshaper) → narrow bandwidth
+		const crusher = ctx.createWaveShaper();
+		const steps = 28;
+		const curve = new Float32Array(8192);
+		for (let i = 0; i < curve.length; i++) {
+			const x = (i * 2) / curve.length - 1;
+			curve[i] = Math.round(x * steps) / steps;
 		}
+		crusher.curve = curve;
+		const highcut = ctx.createBiquadFilter();
+		highcut.type = 'lowpass';
+		highcut.frequency.value = 3400;
+		const lowcut = ctx.createBiquadFilter();
+		lowcut.type = 'highpass';
+		lowcut.frequency.value = 120;
+		const wet = ctx.createGain();
+		wet.gain.value = 0;
+		master.connect(crusher);
+		crusher.connect(highcut);
+		highcut.connect(lowcut);
+		lowcut.connect(wet);
+		wet.connect(ctx.destination);
+		// dry leg is the normal output path; ducks to 0 when the wet path is in
+		const dry = ctx.createGain();
+		dry.gain.value = 1;
+		master.connect(dry);
+		dry.connect(ctx.destination);
+
+		// tape hiss bed: looped filtered noise, silent until switched in
+		const noiseBuffer = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
+		const samples = noiseBuffer.getChannelData(0);
+		for (let i = 0; i < samples.length; i++) samples[i] = Math.random() * 2 - 1;
+		const noise = ctx.createBufferSource();
+		noise.buffer = noiseBuffer;
+		noise.loop = true;
+		const hissFilter = ctx.createBiquadFilter();
+		hissFilter.type = 'lowpass';
+		hissFilter.frequency.value = 3000;
+		const hiss = ctx.createGain();
+		hiss.gain.value = 0;
+		noise.connect(hissFilter).connect(hiss);
+		hiss.connect(ctx.destination);
+		noise.start();
+
+		this.lofiNodes = { wobble, dry, wet, hiss };
+		this.applyLofi();
+	}
+
+	setLofi(on: boolean): void {
+		this.lofiOn = on;
+		this.applyLofi();
+	}
+
+	private applyLofi(): void {
+		if (!this.ctx || !this.lofiNodes) return;
+		const now = this.ctx.currentTime;
+		const { wobble, dry, wet, hiss } = this.lofiNodes;
+		wobble.gain.setTargetAtTime(this.lofiOn ? 1 : 0, now, 0.1);
+		dry.gain.setTargetAtTime(this.lofiOn ? 0 : 1, now, 0.05);
+		wet.gain.setTargetAtTime(this.lofiOn ? 1 : 0, now, 0.05);
+		hiss.gain.setTargetAtTime(this.lofiOn ? 0.006 : 0, now, 0.1);
 	}
 
 	/**
@@ -255,7 +317,7 @@ export class SynthEngine {
 		this.analyserNode = null;
 		this.lfoOsc = null;
 		this.lfoGain = null;
-		this.tapeNodes = null;
+		this.lofiNodes = null;
 	}
 
 	stopAll(): void {
