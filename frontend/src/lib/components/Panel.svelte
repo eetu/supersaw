@@ -41,6 +41,16 @@
 		justify-content: space-between;
 		gap: 1rem;
 	}
+	/* portrait: actions drop below the title as a full-width block instead of
+	   wrapping into a tall column beside it */
+	@media (max-width: 640px) and (orientation: portrait) {
+		header {
+			flex-wrap: wrap;
+		}
+		.actions {
+			width: 100%;
+		}
+	}
 	h2 {
 		margin: 0;
 		font-family: var(--halo-font-heading);

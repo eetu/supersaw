@@ -39,7 +39,9 @@
 				peak *= 0.96;
 			}
 
-			c2d.fillStyle = styles.getPropertyValue('--halo-bg-light');
+			// hardware-dark like the analyser + sequencer plate; unlit segments
+			// were invisible on the light theme's near-white background
+			c2d.fillStyle = '#161616';
 			c2d.fillRect(0, 0, width, height);
 
 			const gap = 3;
@@ -47,20 +49,17 @@
 			const lit = Math.round(level * SEGMENTS);
 			const accent = styles.getPropertyValue('--halo-accent');
 			const error = styles.getPropertyValue('--halo-error');
-			const off = styles.getPropertyValue('--halo-off-bg');
 			for (let i = 0; i < SEGMENTS; i++) {
 				const y = height - (i + 1) * (segHeight + gap);
 				const hot = i >= SEGMENTS - HOT_SEGMENTS;
-				c2d.globalAlpha = i < lit ? 1 : 0.35;
-				c2d.fillStyle = i < lit ? (hot ? error : accent) : off;
+				c2d.fillStyle = i < lit ? (hot ? error : accent) : '#2e2e2e';
 				c2d.fillRect(gap, y, width - gap * 2, segHeight);
 			}
-			c2d.globalAlpha = 1;
 
 			// peak-hold line
 			if (peak > 0.01) {
 				const y = Math.max(1, height - peak * height);
-				c2d.fillStyle = styles.getPropertyValue('--halo-text-main');
+				c2d.fillStyle = '#d6d6d6';
 				c2d.fillRect(gap, y - 1, width - gap * 2, 2);
 			}
 		};

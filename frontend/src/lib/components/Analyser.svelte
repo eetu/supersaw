@@ -12,12 +12,12 @@
 		let raf = 0;
 
 		// Oscilloscope graticule: dashed division lines behind the trace.
-		const drawGrid = (styles: CSSStyleDeclaration): void => {
+		const drawGrid = (_styles: CSSStyleDeclaration): void => {
 			const cols = 8;
 			const rows = 4;
 			c2d.save();
-			c2d.globalAlpha = 0.25;
-			c2d.strokeStyle = styles.getPropertyValue('--halo-text-muted');
+			c2d.globalAlpha = 0.35;
+			c2d.strokeStyle = '#8a8a8a';
 			c2d.lineWidth = 1;
 			c2d.setLineDash([8, 8]);
 			c2d.beginPath();
@@ -38,7 +38,8 @@
 		const draw = (): void => {
 			raf = requestAnimationFrame(draw);
 			const styles = getComputedStyle(canvas!);
-			c2d.fillStyle = styles.getPropertyValue('--halo-bg-light');
+			// hardware-dark scope screen in both themes, like the sequencer plate
+			c2d.fillStyle = '#161616';
 			c2d.fillRect(0, 0, width, height);
 			drawGrid(styles);
 

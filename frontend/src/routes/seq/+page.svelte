@@ -95,7 +95,6 @@
 			{/each}
 		</div>
 	</div>
-	<p class="hint">notes share the synth tab's sound — tweak it there, hear it here.</p>
 </Panel>
 
 <style>
@@ -279,17 +278,13 @@
 		);
 		box-shadow: 0 0 18px 4px rgba(247, 143, 8, 0.75);
 	}
-	.hint {
-		margin: 0;
-		font-size: 0.8rem;
-		color: var(--halo-text-muted);
-	}
 	@media (max-width: 640px) {
 		.controls {
 			flex-wrap: wrap;
 		}
 	}
-	/* Portrait phone: squeeze the label column + gaps so 16 steps stay tappable. */
+	/* Portrait phone: squeeze the label column + gaps so 16 steps stay tappable;
+	   controls flow as compact full-width rows under the title. */
 	@media (max-width: 640px) and (orientation: portrait) {
 		.grid {
 			grid-template-columns: 1.6rem repeat(var(--steps), 1fr);
@@ -297,6 +292,14 @@
 		}
 		.row-label {
 			font-size: 0.6rem;
+		}
+		.controls {
+			width: 100%;
+			flex-wrap: wrap;
+			gap: 0.4rem 0.6rem;
+		}
+		.tempo input {
+			width: 6rem;
 		}
 	}
 </style>

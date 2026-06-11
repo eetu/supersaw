@@ -75,7 +75,6 @@
 	>
 		<div class="dot" class:on={active} style:left="{x * 100}%" style:top="{y * 100}%"></div>
 	</div>
-	<p class="hint">x pitch · y filter — sound comes from the synth tab's controls.</p>
 </Panel>
 
 <style>
@@ -116,10 +115,5 @@
 	.dot.on {
 		background: radial-gradient(circle, #ffc985 0%, var(--halo-accent) 70%);
 		box-shadow: 0 0 16px 4px rgba(247, 143, 8, 0.55);
-	}
-	.hint {
-		margin: 0;
-		font-size: 0.8rem;
-		color: var(--halo-text-muted);
 	}
 </style>
