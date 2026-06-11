@@ -296,7 +296,7 @@
 		.controls {
 			width: 100%;
 			flex-wrap: wrap;
-			gap: 0.4rem 0.5rem;
+			gap: 0.8rem 0.5rem;
 		}
 		/* sliders: one full-width row each, labels aligned; buttons share a row */
 		.mini {
