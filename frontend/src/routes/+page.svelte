@@ -81,9 +81,7 @@
 		</div>
 	</header>
 
-	{#if tab === 'osc'}
-		<WaveSelect bind:value={params.wave} />
-	{/if}
+	<WaveSelect bind:value={params.wave} />
 
 	<div class="sliders">
 		{#if tab === 'osc'}
