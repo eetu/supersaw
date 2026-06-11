@@ -18,6 +18,29 @@
 	let tab: 'osc' | 'filter' = $state('osc');
 
 	const lfoTargets: LfoTarget[] = ['off', 'pitch', 'filter'];
+	const waves = ['sine', 'square', 'sawtooth', 'triangle', 'supersaw'] as const;
+
+	// Randomize the sound, constrained to stay audible and non-hostile:
+	// cutoff never fully closed, resonance off the self-oscillation zone,
+	// envelope times biased short (squared roll).
+	function randomize(): void {
+		const r = Math.random;
+		params.wave = waves[Math.floor(r() * waves.length)];
+		params.detune = r();
+		params.mix = r();
+		params.spread = r();
+		params.attack = r() ** 2 * 0.5;
+		params.decay = 0.02 + r() ** 2 * 0.5;
+		params.sustain = 0.3 + r() * 0.7;
+		params.release = r() ** 2;
+		params.distortion = Math.round(r() ** 2 * 60);
+		params.cutoff = 0.25 + r() * 0.75;
+		params.resonance = r() * 0.7;
+		params.filterEnv = r();
+		params.lfoRate = r();
+		params.lfoDepth = r() * 0.8;
+		params.lfoTarget = lfoTargets[Math.floor(r() * lfoTargets.length)];
+	}
 
 	// the LFO is engine-global hardware — push param changes to it live
 	$effect(() => engine.setLfo(params.lfoRate, params.lfoDepth, params.lfoTarget));
@@ -36,6 +59,9 @@
 			</button>
 		</nav>
 		<div class="header-actions">
+			<button type="button" class="dice" onclick={randomize} title="randomize controls">
+				<span class="material-icons-outlined">casino</span>
+			</button>
 			<button
 				type="button"
 				class="knob-toggle"
@@ -122,6 +148,27 @@
 		display: flex;
 		align-items: center;
 		gap: 0.75rem;
+	}
+	.dice {
+		display: inline-flex;
+		padding: 0.25rem;
+		border: none;
+		border-radius: var(--halo-radius-pill);
+		background: none;
+		color: var(--halo-text-muted);
+		cursor: pointer;
+		transition:
+			color var(--halo-d-fast),
+			transform var(--halo-d-fast);
+	}
+	.dice:hover {
+		color: var(--halo-accent);
+	}
+	.dice:active {
+		transform: rotate(72deg);
+	}
+	.dice .material-icons-outlined {
+		font-size: 1.25rem;
 	}
 	/* in-card tabs echo the top nav: underline, accent when active */
 	.ctl-tabs {
