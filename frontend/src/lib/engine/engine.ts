@@ -105,9 +105,10 @@ export class SynthEngine {
 	}
 
 	/** Schedule a one-shot note (sequencer): starts at `when`, releases after `duration`. */
-	play(note: Note, params: VoiceParams, when: number, duration: number): void {
+	play(note: Note, params: VoiceParams, when: number, duration: number, velocity = 1): void {
 		const ctx = this.ensure();
-		const voice = this.createVoice(ctx, frequency(note), params, when);
+		const voice = new Voice(ctx, this.master!, frequency(note), params, when, velocity);
+		if (this.bendCents !== 0) voice.bend(this.bendCents, when);
 		voice.stop(when + duration);
 		this.scheduled.add(voice);
 		// Voices disconnect themselves onended; this set only exists for stopAll.

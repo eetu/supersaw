@@ -13,23 +13,26 @@
 		setTimeout(() => (copied = false), 1500);
 	}
 
-	// Drag-to-draw: pointerdown picks the brush value (inverse of the hit pad),
-	// dragging paints it across pads. null = not painting.
-	let brush: boolean | null = null;
+	// Taps cycle velocity: off → full → mid → low → off. Drag-to-draw paints
+	// the value the first pad got (so dragging from an off pad lays full-velocity
+	// steps, dragging from a lit one erases). null = not painting.
+	let brush: number | null = null;
+
+	const cycle = (level: number): number => (level === 0 ? 3 : level - 1);
 
 	const padDown = (r: number, s: number) => (e: PointerEvent) => {
 		// release the implicit capture so pointerenter fires on other pads
 		(e.target as Element).releasePointerCapture(e.pointerId);
-		brush = !seq.grid[r][s];
+		brush = cycle(seq.grid[r][s]);
 		seq.grid[r][s] = brush;
 	};
 	const padEnter = (r: number, s: number) => (e: PointerEvent) => {
 		if (brush !== null && e.buttons) seq.grid[r][s] = brush;
 	};
-	// keyboard activation still toggles (click with detail 0 = Enter/Space);
+	// keyboard activation still cycles (click with detail 0 = Enter/Space);
 	// pointer clicks already handled that on pointerdown
 	const padKey = (r: number, s: number) => (e: MouseEvent) => {
-		if (e.detail === 0) seq.grid[r][s] = !seq.grid[r][s];
+		if (e.detail === 0) seq.grid[r][s] = cycle(seq.grid[r][s]);
 	};
 </script>
 
@@ -38,9 +41,17 @@
 <Panel title="sequencer">
 	{#snippet actions()}
 		<div class="controls">
-			<label class="tempo">
+			<label class="mini tempo">
 				<span>{seq.tempo} bpm</span>
 				<input type="range" min="40" max="240" step="1" bind:value={seq.tempo} />
+			</label>
+			<label class="mini">
+				<span>swing</span>
+				<input type="range" min="0" max="1" step="0.01" bind:value={seq.swing} />
+			</label>
+			<label class="mini">
+				<span>chance</span>
+				<input type="range" min="0.1" max="1" step="0.01" bind:value={seq.chance} />
 			</label>
 			<button
 				type="button"
@@ -67,15 +78,15 @@
 		<div class="grid" style:--steps={seq.grid[0].length}>
 			{#each seq.grid as row, r (r)}
 				<span class="row-label">{ROWS[r]}</span>
-				{#each row as on, s (s)}
+				{#each row as level, s (s)}
 					<button
 						type="button"
-						class="cell"
-						class:on
+						class="cell v{level}"
+						class:on={level > 0}
 						class:beat={s % 4 === 0}
 						class:playing={seq.playing && s === seq.currentStep}
-						aria-label="{ROWS[r]} step {s + 1}"
-						aria-pressed={on}
+						aria-label="{ROWS[r]} step {s + 1}, velocity {level}/3"
+						aria-pressed={level > 0}
 						onpointerdown={padDown(r, s)}
 						onpointerenter={padEnter(r, s)}
 						onclick={padKey(r, s)}
@@ -93,7 +104,7 @@
 		align-items: center;
 		gap: 0.75rem;
 	}
-	.tempo {
+	.mini {
 		display: flex;
 		align-items: center;
 		gap: 0.5rem;
@@ -102,19 +113,22 @@
 		font-variant-numeric: tabular-nums;
 	}
 	/* Same token-rebuild as RangeSlider: native track ignores CSS vars. */
-	.tempo input {
+	.mini input {
 		appearance: none;
-		width: 8rem;
+		width: 5rem;
 		margin: 0;
 		background: transparent;
 		cursor: ew-resize;
 	}
-	.tempo input::-webkit-slider-runnable-track {
+	.tempo input {
+		width: 8rem;
+	}
+	.mini input::-webkit-slider-runnable-track {
 		height: 0.35rem;
 		background: var(--halo-off-bg);
 		border-radius: var(--halo-radius-pill);
 	}
-	.tempo input::-webkit-slider-thumb {
+	.mini input::-webkit-slider-thumb {
 		appearance: none;
 		width: 1rem;
 		height: 1rem;
@@ -123,19 +137,19 @@
 		background: var(--halo-accent);
 		box-shadow: var(--halo-shadow);
 	}
-	.tempo input::-moz-range-track {
+	.mini input::-moz-range-track {
 		height: 0.35rem;
 		background: var(--halo-off-bg);
 		border-radius: var(--halo-radius-pill);
 	}
-	.tempo input::-moz-range-thumb {
+	.mini input::-moz-range-thumb {
 		width: 1rem;
 		height: 1rem;
 		border: none;
 		border-radius: 50%;
 		background: var(--halo-accent);
 	}
-	.tempo input:focus-visible {
+	.mini input:focus-visible {
 		outline: 2px solid var(--halo-accent);
 		outline-offset: 2px;
 		border-radius: var(--halo-radius-pill);
@@ -240,6 +254,13 @@
 			var(--halo-accent) 100%
 		);
 		box-shadow: 0 0 12px 2px rgba(247, 143, 8, 0.55);
+	}
+	/* velocity = LED brightness (filter dims the spilled glow too) */
+	.cell.v2 {
+		filter: brightness(0.72);
+	}
+	.cell.v1 {
+		filter: brightness(0.45);
 	}
 	/* playhead over an unlit pad: LED idling warm */
 	.cell.playing {

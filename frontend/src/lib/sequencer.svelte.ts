@@ -8,29 +8,38 @@ import { params } from './params.svelte.ts';
 export const ROWS: Note[] = ['C6', 'A#5', 'G5', 'F5', 'D#5', 'C5', 'A#4', 'G4'];
 export const STEPS = 16;
 
+// Pads hold a velocity level 0..3 (0 = off); taps cycle down from full.
+export const VELOCITIES = [0, 0.33, 0.66, 1] as const;
+
 export const seq = $state({
-	grid: ROWS.map(() => Array<boolean>(STEPS).fill(false)),
+	grid: ROWS.map(() => Array<number>(STEPS).fill(0)),
 	tempo: 120,
+	/** 0..1 — MPC-style off-beat delay */
+	swing: 0,
+	/** 0..1 — probability that a lit pad actually fires */
+	chance: 1,
 	playing: false,
 	currentStep: -1,
 	// game-of-life mode: the grid evolves one Conway generation per loop
 	evolve: false
 });
 
-// One Conway generation on the torus (edges wrap). Survive on 2-3 neighbors,
-// born on 3 — pentatonic rows keep even chaotic generations musical.
+// One Conway generation on the torus (edges wrap). Survive on 2-3 neighbors
+// (velocity kept), born on 3 (full velocity) — pentatonic rows keep even
+// chaotic generations musical.
 function lifeStep(): void {
 	const rows = seq.grid.length;
 	const next = seq.grid.map((row, r) =>
-		row.map((on, c) => {
+		row.map((level, c) => {
 			let n = 0;
 			for (let dr = -1; dr <= 1; dr++) {
 				for (let dc = -1; dc <= 1; dc++) {
 					if (dr === 0 && dc === 0) continue;
-					if (seq.grid[(r + dr + rows) % rows][(c + dc + STEPS) % STEPS]) n++;
+					if (seq.grid[(r + dr + rows) % rows][(c + dc + STEPS) % STEPS] > 0) n++;
 				}
 			}
-			return on ? n === 2 || n === 3 : n === 3;
+			if (level > 0) return n === 2 || n === 3 ? level : 0;
+			return n === 3 ? 3 : 0;
 		})
 	);
 	for (const [r, row] of seq.grid.entries()) {
@@ -39,11 +48,15 @@ function lifeStep(): void {
 }
 
 function onStep(step: number, time: number): void {
-	// pick up live tempo changes before the scheduler computes the next step
+	// pick up live tempo/groove changes before the scheduler computes the next step
 	scheduler.tempo = seq.tempo;
+	scheduler.swing = seq.swing;
 	const stepLength = (60 / seq.tempo) * 0.25;
 	for (const [row, note] of ROWS.entries()) {
-		if (seq.grid[row][step]) engine.play(note, params, time, stepLength * 0.9);
+		const level = seq.grid[row][step];
+		if (level > 0 && (seq.chance >= 1 || Math.random() < seq.chance)) {
+			engine.play(note, params, time, stepLength * 0.9, VELOCITIES[level]);
+		}
 	}
 	// after the loop's last step is scheduled, evolve — synchronously, so the
 	// next loop's steps (possibly scheduled in this same tick) see the new gen
@@ -76,11 +89,12 @@ export function togglePlay(): void {
 		seq.currentStep = -1;
 	} else {
 		scheduler.tempo = seq.tempo;
+		scheduler.swing = seq.swing;
 		seq.playing = true;
 		scheduler.start();
 	}
 }
 
 export function clearGrid(): void {
-	for (const row of seq.grid) row.fill(false);
+	for (const row of seq.grid) row.fill(0);
 }

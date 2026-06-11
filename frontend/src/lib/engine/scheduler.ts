@@ -12,6 +12,8 @@ const TICK_MS = 25;
 
 export class Scheduler {
 	tempo = 120;
+	/** 0..1 — delays every odd 16th by up to half a step (MPC-style groove) */
+	swing = 0;
 	readonly steps: number;
 
 	private nextStepTime = 0;
@@ -54,10 +56,15 @@ export class Scheduler {
 	private tick(): void {
 		const lookahead = document.hidden ? HIDDEN_LOOKAHEAD_S : LOOKAHEAD_S;
 		while (this.nextStepTime < this.now() + lookahead) {
-			this.onStep(this.step, this.nextStepTime);
-			this.step = (this.step + 1) % this.steps;
 			// each step is a 16th note
-			this.nextStepTime += (60 / this.tempo) * 0.25;
+			const stepLength = (60 / this.tempo) * 0.25;
+			// swing shifts only the played time of off-beat steps; the underlying
+			// grid stays straight so the loop length never drifts
+			const swung =
+				this.step % 2 === 1 ? this.nextStepTime + stepLength * 0.5 * this.swing : this.nextStepTime;
+			this.onStep(this.step, swung);
+			this.step = (this.step + 1) % this.steps;
+			this.nextStepTime += stepLength;
 		}
 	}
 }

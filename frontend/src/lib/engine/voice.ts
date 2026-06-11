@@ -44,7 +44,8 @@ export class Voice {
 		destination: AudioNode,
 		freq: number,
 		params: VoiceParams,
-		when = ctx.currentTime
+		when = ctx.currentTime,
+		private readonly velocity = 1
 	) {
 		this.freq = freq;
 		this.startTime = when;
@@ -93,7 +94,7 @@ export class Voice {
 		envelope.gain.linearRampToValueAtTime(params.sustain, when + params.attack + params.decay);
 
 		const levelGain = ctx.createGain();
-		levelGain.gain.setValueAtTime(level, when);
+		levelGain.gain.setValueAtTime(level * this.velocity, when);
 
 		const panner = ctx.createStereoPanner();
 		panner.pan.value = pan;
