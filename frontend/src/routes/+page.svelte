@@ -71,13 +71,17 @@
 		});
 		// the theme sits low — D-F-E-D around octave 4
 		octave = 4;
-		// ...and introduces itself
+		// ...and introduces itself: D — C-D F — E-D E—— (the phrase hangs on
+		// the unresolved E over D minor, the T2 signature)
 		const now = engine.ensure().currentTime + 0.2;
 		const p = { ...params };
-		engine.play('D4', p, now, 0.9);
-		engine.play('F4', p, now + 1.05, 0.4);
-		engine.play('E4', p, now + 1.5, 0.4);
-		engine.play('D4', p, now + 1.95, 1.3);
+		engine.play('D4', p, now, 1.4);
+		engine.play('C4', p, now + 1.6, 0.3);
+		engine.play('D4', p, now + 1.95, 0.3);
+		engine.play('F4', p, now + 2.3, 1.3);
+		engine.play('E4', p, now + 3.7, 0.3);
+		engine.play('D4', p, now + 4.05, 0.3);
+		engine.play('E4', p, now + 4.4, 1.8);
 	}
 
 	// the LFO is engine-global hardware — push param changes to it live
