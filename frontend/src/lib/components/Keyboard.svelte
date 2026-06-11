@@ -42,6 +42,14 @@
 			setOctave(Number(e.code.slice(5)));
 			return;
 		}
+		// arrows step the octave — but not when a focused control owns them
+		// (sliders move on arrow keys)
+		if (e.code === 'ArrowLeft' || e.code === 'ArrowRight') {
+			const target = e.target as HTMLElement | null;
+			if (target?.matches('input, select, textarea')) return;
+			setOctave(octave + (e.code === 'ArrowRight' ? 1 : -1));
+			return;
+		}
 		const note = noteForKey(e.code, octave);
 		if (note) press(note);
 	}
