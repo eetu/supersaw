@@ -1,10 +1,17 @@
 import { frequency, type Note } from './notes.ts';
-import { Voice, type VoiceParams } from './voice.ts';
+import { type LfoRoute, Voice, type VoiceParams } from './voice.ts';
+
+export type LfoTarget = 'off' | 'pitch' | 'filter';
 
 export type SynthParams = VoiceParams & {
 	poly: boolean;
 	/** mono only: portamento time in seconds */
 	glide: number;
+	/** LFO rate 0..1, mapped exponentially to 0.1..20 Hz */
+	lfoRate: number;
+	/** LFO depth 0..1 */
+	lfoDepth: number;
+	lfoTarget: LfoTarget;
 };
 
 const MONO_VOICE = 'mono';
@@ -20,6 +27,11 @@ export class SynthEngine {
 	private scheduled = new Set<Voice>();
 	private bendCents = 0;
 	private channel: BroadcastChannel | null = null;
+	private lfoOsc: OscillatorNode | null = null;
+	private lfoGain: GainNode | null = null;
+	private lfoRate = 0.4;
+	private lfoDepth = 0;
+	private lfoTarget: LfoTarget = 'off';
 
 	/** Fired when another tab claims the audio output (we release ours). */
 	onReleased: (() => void) | null = null;
@@ -49,6 +61,12 @@ export class SynthEngine {
 			this.analyserNode = this.ctx.createAnalyser();
 			this.analyserNode.fftSize = 2048;
 			this.master.connect(this.analyserNode);
+			// one global LFO, always running; voices tap lfoGain when routed
+			this.lfoOsc = this.ctx.createOscillator();
+			this.lfoGain = this.ctx.createGain();
+			this.lfoOsc.connect(this.lfoGain);
+			this.lfoOsc.start();
+			this.applyLfo();
 			// Safari parks the context as suspended/"interrupted" across system
 			// sleep and tab switches and doesn't always wake it on its own —
 			// kick it whenever the page becomes visible again.
@@ -82,10 +100,45 @@ export class SynthEngine {
 		this.voices.set(note, this.createVoice(ctx, freq, params, now));
 	}
 
-	private createVoice(ctx: AudioContext, freq: number, params: VoiceParams, when: number): Voice {
-		const voice = new Voice(ctx, this.master!, freq, params, when);
+	private createVoice(
+		ctx: AudioContext,
+		freq: number,
+		params: VoiceParams,
+		when: number,
+		velocity = 1
+	): Voice {
+		const voice = new Voice(ctx, this.master!, freq, params, when, velocity, this.lfoRoute());
 		if (this.bendCents !== 0) voice.bend(this.bendCents, when);
 		return voice;
+	}
+
+	private lfoRoute(): LfoRoute | null {
+		return this.lfoTarget !== 'off' && this.lfoGain
+			? { node: this.lfoGain, target: this.lfoTarget }
+			: null;
+	}
+
+	/**
+	 * Route/shape the global LFO. Already-sounding voices keep their previous
+	 * routing until they end; rate and depth changes are live for everyone.
+	 */
+	setLfo(rate: number, depth: number, target: LfoTarget): void {
+		this.lfoRate = rate;
+		this.lfoDepth = depth;
+		this.lfoTarget = target;
+		this.applyLfo();
+	}
+
+	private applyLfo(): void {
+		if (!this.lfoOsc || !this.lfoGain) return;
+		this.lfoOsc.frequency.value = 0.1 * 200 ** this.lfoRate;
+		// pitch target = cents on osc.detune, filter target = Hz on cutoff
+		this.lfoGain.gain.value =
+			this.lfoTarget === 'pitch'
+				? this.lfoDepth * 600
+				: this.lfoTarget === 'filter'
+					? this.lfoDepth * 3000
+					: 0;
 	}
 
 	/** Pitch wheel: bend every sounding and future voice by ±semitones. */
@@ -107,8 +160,7 @@ export class SynthEngine {
 	/** Schedule a one-shot note (sequencer): starts at `when`, releases after `duration`. */
 	play(note: Note, params: VoiceParams, when: number, duration: number, velocity = 1): void {
 		const ctx = this.ensure();
-		const voice = new Voice(ctx, this.master!, frequency(note), params, when, velocity);
-		if (this.bendCents !== 0) voice.bend(this.bendCents, when);
+		const voice = this.createVoice(ctx, frequency(note), params, when, velocity);
 		voice.stop(when + duration);
 		this.scheduled.add(voice);
 		// Voices disconnect themselves onended; this set only exists for stopAll.
@@ -128,6 +180,8 @@ export class SynthEngine {
 		this.ctx = null;
 		this.master = null;
 		this.analyserNode = null;
+		this.lfoOsc = null;
+		this.lfoGain = null;
 	}
 
 	stopAll(): void {

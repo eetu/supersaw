@@ -12,6 +12,12 @@ export const params: SynthParams = $state({
 	detune: 0.4,
 	mix: 0.75,
 	spread: 0.6,
+	cutoff: 1,
+	resonance: 0.1,
+	filterEnv: 0,
 	poly: true,
-	glide: 0
+	glide: 0,
+	lfoRate: 0.4,
+	lfoDepth: 0,
+	lfoTarget: 'off'
 });

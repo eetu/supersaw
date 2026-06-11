@@ -7,11 +7,17 @@
 	import RangeSlider from '$lib/components/RangeSlider.svelte';
 	import VuMeter from '$lib/components/VuMeter.svelte';
 	import WaveSelect from '$lib/components/WaveSelect.svelte';
+	import { engine, type LfoTarget } from '$lib/engine/engine';
 	import { params } from '$lib/params.svelte';
 
 	// portrait phones: shaping sliders are collapsed by default (CSS shows them
 	// unconditionally on bigger screens, the toggle button only exists there)
 	let showKnobs = $state(false);
+
+	const lfoTargets: LfoTarget[] = ['off', 'pitch', 'filter'];
+
+	// the LFO is engine-global hardware — push param changes to it live
+	$effect(() => engine.setLfo(params.lfoRate, params.lfoDepth, params.lfoTarget));
 </script>
 
 <Panel title="oscillator">
@@ -50,6 +56,31 @@
 	</div>
 </Panel>
 
+<Panel title="filter + lfo">
+	<div class="sliders">
+		<div class="knobs" class:open={showKnobs}>
+			<RangeSlider label="cutoff" bind:value={params.cutoff} />
+			<RangeSlider label="res" bind:value={params.resonance} />
+			<RangeSlider label="env" bind:value={params.filterEnv} />
+			<RangeSlider label="rate" bind:value={params.lfoRate} />
+			<RangeSlider label="depth" bind:value={params.lfoDepth} />
+		</div>
+		<div class="lfo-target" role="radiogroup" aria-label="lfo target">
+			{#each lfoTargets as target (target)}
+				<button
+					type="button"
+					role="radio"
+					aria-checked={params.lfoTarget === target}
+					class:active={params.lfoTarget === target}
+					onclick={() => (params.lfoTarget = target)}
+				>
+					{target}
+				</button>
+			{/each}
+		</div>
+	</div>
+</Panel>
+
 <Panel title="keyboard">
 	<div class="kb-row">
 		<PitchWheel />
@@ -84,6 +115,32 @@
 		align-self: flex-start;
 	}
 	.knob-toggle[aria-expanded='true'] {
+		background: var(--halo-accent-soft);
+		color: var(--halo-accent);
+	}
+	.lfo-target {
+		display: flex;
+		flex-direction: column;
+		gap: 0.25rem;
+		align-self: center;
+	}
+	.lfo-target button {
+		font-family: var(--halo-font-heading);
+		font-size: 0.8rem;
+		padding: 0.35rem 0.7rem;
+		border: none;
+		border-radius: var(--halo-radius-pill);
+		background: var(--halo-bg-light);
+		color: var(--halo-text-muted);
+		cursor: pointer;
+		transition:
+			background var(--halo-d-fast),
+			color var(--halo-d-fast);
+	}
+	.lfo-target button:hover {
+		color: var(--halo-text-main);
+	}
+	.lfo-target button.active {
 		background: var(--halo-accent-soft);
 		color: var(--halo-accent);
 	}

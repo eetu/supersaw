@@ -15,7 +15,19 @@ export type VoiceParams = {
 	mix: number;
 	/** supersaw only, 0..1 — stereo width of the 7 saws */
 	spread: number;
+	/** lowpass cutoff 0..1, mapped exponentially to 20 Hz..16 kHz */
+	cutoff: number;
+	/** filter resonance 0..1 (Q 0.7..17.7) */
+	resonance: number;
+	/** filter envelope amount 0..1 — sweeps cutoff up to +4 octaves via ADSR */
+	filterEnv: number;
 };
+
+export type LfoRoute = { node: AudioNode; target: 'pitch' | 'filter' };
+
+export function cutoffHz(x: number): number {
+	return 20 * 800 ** x;
+}
 
 // pan positions per saw, scaled by the spread param (centre osc stays centre)
 const PAN_POSITIONS = [-1, -0.7, -0.35, 0, 0.35, 0.7, 1];
@@ -39,24 +51,48 @@ export class Voice {
 	private readonly attack: number;
 	private readonly release: number;
 
+	private endedUnits = 0;
+	private readonly filter: BiquadFilterNode;
+	private readonly lfo: LfoRoute | null;
+
 	constructor(
 		ctx: AudioContext,
 		destination: AudioNode,
 		freq: number,
 		params: VoiceParams,
 		when = ctx.currentTime,
-		private readonly velocity = 1
+		private readonly velocity = 1,
+		lfo: LfoRoute | null = null
 	) {
 		this.freq = freq;
 		this.startTime = when;
 		this.attack = params.attack;
 		this.release = params.release;
+		this.lfo = lfo;
+
+		// Per-voice resonant lowpass; the filter envelope rides the same ADSR
+		// shape as the amp (sustain reuses the amp sustain level).
+		this.filter = ctx.createBiquadFilter();
+		this.filter.type = 'lowpass';
+		this.filter.Q.value = 0.7 + params.resonance * 17;
+		const base = cutoffHz(params.cutoff);
+		this.filter.frequency.setValueAtTime(base, when);
+		if (params.filterEnv > 0) {
+			const peak = Math.min(base * 2 ** (params.filterEnv * 4), 16000);
+			this.filter.frequency.linearRampToValueAtTime(peak, when + params.attack);
+			this.filter.frequency.linearRampToValueAtTime(
+				base + (peak - base) * params.sustain,
+				when + params.attack + params.decay
+			);
+		}
+		this.filter.connect(destination);
+		if (lfo?.target === 'filter') lfo.node.connect(this.filter.frequency);
 
 		if (params.wave === 'supersaw') {
 			const highpass = ctx.createBiquadFilter();
 			highpass.type = 'highpass';
 			highpass.frequency.value = 200;
-			highpass.connect(destination);
+			highpass.connect(this.filter);
 			const levels = mixLevels(params.mix);
 			detuneRatios(params.detune).forEach((ratio, i) => {
 				// stagger starts ≤10ms so the saws don't begin phase-aligned
@@ -67,7 +103,10 @@ export class Voice {
 				);
 			});
 		} else {
-			this.units.push(this.createUnit(ctx, destination, params, 1, 1, 0, when));
+			this.units.push(this.createUnit(ctx, this.filter, params, 1, 1, 0, when));
+		}
+		if (lfo?.target === 'pitch') {
+			for (const unit of this.units) lfo.node.connect(unit.osc.detune);
 		}
 	}
 
@@ -107,11 +146,17 @@ export class Voice {
 		osc.start(when);
 
 		osc.onended = () => {
+			if (this.lfo?.target === 'pitch') this.lfo.node.disconnect(osc.detune);
 			osc.disconnect();
 			shaper.disconnect();
 			envelope.disconnect();
 			levelGain.disconnect();
 			panner.disconnect();
+			// last unit out tears down the shared per-voice nodes
+			if (++this.endedUnits === this.units.length) {
+				if (this.lfo?.target === 'filter') this.lfo.node.disconnect(this.filter.frequency);
+				this.filter.disconnect();
+			}
 		};
 
 		return { osc, envelope, ratio };

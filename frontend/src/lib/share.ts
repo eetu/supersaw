@@ -1,11 +1,13 @@
 // Pattern + patch sharing via URL hash. No backend: the whole state rides the
 // link. Grid = one 16-bit hex word per row; params = short query keys.
 
+import type { LfoTarget } from './engine/engine.ts';
 import type { Waveform } from './engine/voice.ts';
 import { params } from './params.svelte.ts';
 import { ROWS, seq, STEPS } from './sequencer.svelte.ts';
 
 const WAVES: Waveform[] = ['sine', 'square', 'sawtooth', 'triangle', 'supersaw'];
+const LFO_TARGETS: LfoTarget[] = ['off', 'pitch', 'filter'];
 
 const clamp = (v: number, min: number, max: number): number => Math.min(max, Math.max(min, v));
 
@@ -32,7 +34,13 @@ export function shareUrl(): string {
 		di: String(params.distortion),
 		de: String(params.detune),
 		m: String(params.mix),
-		sp: String(params.spread)
+		sp: String(params.spread),
+		co: String(params.cutoff),
+		q: String(params.resonance),
+		fe: String(params.filterEnv),
+		lr: String(params.lfoRate),
+		ld: String(params.lfoDepth),
+		lt: String(LFO_TARGETS.indexOf(params.lfoTarget))
 	});
 	return `${location.origin}${location.pathname}#${q.toString()}`;
 }
@@ -78,4 +86,10 @@ export function applyShareHash(): void {
 	num('de', 0, 1, (v) => (params.detune = v));
 	num('m', 0, 1, (v) => (params.mix = v));
 	num('sp', 0, 1, (v) => (params.spread = v));
+	num('co', 0, 1, (v) => (params.cutoff = v));
+	num('q', 0, 1, (v) => (params.resonance = v));
+	num('fe', 0, 1, (v) => (params.filterEnv = v));
+	num('lr', 0, 1, (v) => (params.lfoRate = v));
+	num('ld', 0, 1, (v) => (params.lfoDepth = v));
+	num('lt', 0, LFO_TARGETS.length - 1, (v) => (params.lfoTarget = LFO_TARGETS[Math.round(v)]));
 }
