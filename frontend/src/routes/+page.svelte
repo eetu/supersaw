@@ -18,6 +18,10 @@
 
 	// the LFO is engine-global hardware — push param changes to it live
 	$effect(() => engine.setLfo(params.lfoRate, params.lfoDepth, params.lfoTarget));
+	// filter knobs retarget already-sounding voices too
+	$effect(() =>
+		engine.setFilter(params.cutoff, params.resonance, params.filterEnv, params.sustain)
+	);
 </script>
 
 <Panel title="oscillator">

@@ -184,6 +184,26 @@ export class Voice {
 		}
 	}
 
+	/**
+	 * Live filter tweak on a sounding note. Lands on the envelope's steady-state
+	 * value for the new cutoff (post attack+decay this is exact; mid-attack it
+	 * settles early — fine for knob twisting).
+	 */
+	setFilter(
+		cutoff: number,
+		resonance: number,
+		filterEnv: number,
+		sustain: number,
+		now: number
+	): void {
+		const base = cutoffHz(cutoff);
+		const peak = Math.min(base * 2 ** (filterEnv * 4), 16000);
+		const steady = filterEnv > 0 ? base + (peak - base) * sustain : base;
+		this.filter.frequency.cancelScheduledValues(now);
+		this.filter.frequency.setTargetAtTime(steady, now, 0.03);
+		this.filter.Q.setTargetAtTime(0.7 + resonance * 17, now, 0.03);
+	}
+
 	/** Pitch bend in cents, applied via osc.detune so supersaw ratios stay intact. */
 	bend(cents: number, now: number): void {
 		for (const unit of this.units) {

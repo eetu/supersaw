@@ -141,6 +141,19 @@ export class SynthEngine {
 					: 0;
 	}
 
+	/**
+	 * Live filter knobs: retarget held voices (keyboard/mono). Scheduled
+	 * sequencer one-shots are left alone — cancelling their future envelope
+	 * ramps would wreck them, and each step reads fresh params anyway.
+	 */
+	setFilter(cutoff: number, resonance: number, filterEnv: number, sustain: number): void {
+		if (!this.ctx) return;
+		const now = this.ctx.currentTime;
+		for (const voice of this.voices.values()) {
+			voice.setFilter(cutoff, resonance, filterEnv, sustain, now);
+		}
+	}
+
 	/** Pitch wheel: bend every sounding and future voice by ±semitones. */
 	setPitchBend(semitones: number): void {
 		this.bendCents = semitones * 100;
