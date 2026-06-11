@@ -14,6 +14,9 @@
 	// unconditionally on bigger screens, the toggle button only exists there)
 	let showKnobs = $state(false);
 
+	// one controls card, tabbed — keeps the keyboard on screen
+	let tab: 'osc' | 'filter' = $state('osc');
+
 	const lfoTargets: LfoTarget[] = ['off', 'pitch', 'filter'];
 
 	// the LFO is engine-global hardware — push param changes to it live
@@ -24,66 +27,76 @@
 	);
 </script>
 
-<Panel title="oscillator">
-	{#snippet actions()}
-		<button
-			type="button"
-			class="knob-toggle"
-			aria-expanded={showKnobs}
-			onclick={() => (showKnobs = !showKnobs)}
-		>
-			shaping
-		</button>
-		<FlipSwitch label="poly" bind:checked={params.poly} />
-	{/snippet}
-	<WaveSelect bind:value={params.wave} />
-	<div class="sliders">
-		<div class="knobs" class:open={showKnobs}>
-			{#if params.wave === 'supersaw'}
-				<RangeSlider label="detune" bind:value={params.detune} step={0.1} />
-				<RangeSlider label="mix" bind:value={params.mix} step={0.1} />
-				<RangeSlider label="spread" bind:value={params.spread} step={0.1} />
-			{/if}
-			<RangeSlider label="att" bind:value={params.attack} />
-			<RangeSlider label="dec" bind:value={params.decay} />
-			<RangeSlider label="sus" bind:value={params.sustain} />
-			<RangeSlider label="rel" bind:value={params.release} />
-			<RangeSlider label="dist" bind:value={params.distortion} max={100} step={1} />
-			{#if !params.poly}
-				<RangeSlider label="glide" bind:value={params.glide} max={2} />
-			{/if}
+<section class="halo-card controls">
+	<header>
+		<nav class="ctl-tabs" aria-label="control sections">
+			<button class:active={tab === 'osc'} onclick={() => (tab = 'osc')}>oscillator</button>
+			<button class:active={tab === 'filter'} onclick={() => (tab = 'filter')}>
+				filter + lfo
+			</button>
+		</nav>
+		<div class="header-actions">
+			<button
+				type="button"
+				class="knob-toggle"
+				aria-expanded={showKnobs}
+				onclick={() => (showKnobs = !showKnobs)}
+			>
+				shaping
+			</button>
+			<FlipSwitch label="poly" bind:checked={params.poly} />
 		</div>
+	</header>
+
+	{#if tab === 'osc'}
+		<WaveSelect bind:value={params.wave} />
+	{/if}
+
+	<div class="sliders">
+		{#if tab === 'osc'}
+			<div class="knobs" class:open={showKnobs}>
+				{#if params.wave === 'supersaw'}
+					<RangeSlider label="detune" bind:value={params.detune} step={0.1} />
+					<RangeSlider label="mix" bind:value={params.mix} step={0.1} />
+					<RangeSlider label="spread" bind:value={params.spread} step={0.1} />
+				{/if}
+				<RangeSlider label="att" bind:value={params.attack} />
+				<RangeSlider label="dec" bind:value={params.decay} />
+				<RangeSlider label="sus" bind:value={params.sustain} />
+				<RangeSlider label="rel" bind:value={params.release} />
+				<RangeSlider label="dist" bind:value={params.distortion} max={100} step={1} />
+				{#if !params.poly}
+					<RangeSlider label="glide" bind:value={params.glide} max={2} />
+				{/if}
+			</div>
+		{:else}
+			<div class="knobs" class:open={showKnobs}>
+				<RangeSlider label="cutoff" bind:value={params.cutoff} />
+				<RangeSlider label="res" bind:value={params.resonance} />
+				<RangeSlider label="env" bind:value={params.filterEnv} />
+				<RangeSlider label="rate" bind:value={params.lfoRate} />
+				<RangeSlider label="depth" bind:value={params.lfoDepth} />
+			</div>
+			<div class="lfo-target" role="radiogroup" aria-label="lfo target">
+				{#each lfoTargets as target (target)}
+					<button
+						type="button"
+						role="radio"
+						aria-checked={params.lfoTarget === target}
+						class:active={params.lfoTarget === target}
+						onclick={() => (params.lfoTarget = target)}
+					>
+						{target}
+					</button>
+				{/each}
+			</div>
+		{/if}
 		<div class="scope">
 			<Analyser />
 			<VuMeter />
 		</div>
 	</div>
-</Panel>
-
-<Panel title="filter + lfo">
-	<div class="sliders">
-		<div class="knobs" class:open={showKnobs}>
-			<RangeSlider label="cutoff" bind:value={params.cutoff} />
-			<RangeSlider label="res" bind:value={params.resonance} />
-			<RangeSlider label="env" bind:value={params.filterEnv} />
-			<RangeSlider label="rate" bind:value={params.lfoRate} />
-			<RangeSlider label="depth" bind:value={params.lfoDepth} />
-		</div>
-		<div class="lfo-target" role="radiogroup" aria-label="lfo target">
-			{#each lfoTargets as target (target)}
-				<button
-					type="button"
-					role="radio"
-					aria-checked={params.lfoTarget === target}
-					class:active={params.lfoTarget === target}
-					onclick={() => (params.lfoTarget = target)}
-				>
-					{target}
-				</button>
-			{/each}
-		</div>
-	</div>
-</Panel>
+</section>
 
 <Panel title="keyboard">
 	<div class="kb-row">
@@ -93,6 +106,55 @@
 </Panel>
 
 <style>
+	.controls {
+		display: flex;
+		flex-direction: column;
+		gap: 1rem;
+	}
+	.controls header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 1rem;
+		flex-wrap: wrap;
+	}
+	.header-actions {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+	}
+	/* in-card tabs echo the top nav: underline, accent when active */
+	.ctl-tabs {
+		display: flex;
+		gap: 0.25rem;
+		border-bottom: 1px solid var(--halo-border);
+	}
+	.ctl-tabs button {
+		font-family: var(--halo-font-heading);
+		font-size: 0.95rem;
+		font-weight: 600;
+		padding: 0.35rem 0.9rem;
+		border: none;
+		border-bottom: 2px solid transparent;
+		margin-bottom: -1px;
+		background: none;
+		color: var(--halo-text-muted);
+		cursor: pointer;
+		transition: color var(--halo-d-fast);
+	}
+	.ctl-tabs button:hover {
+		color: var(--halo-text-main);
+	}
+	.ctl-tabs button.active {
+		color: var(--halo-accent);
+		border-bottom-color: var(--halo-accent);
+	}
+	@media (max-width: 640px) and (orientation: portrait) {
+		.controls {
+			padding: 0.6rem;
+			gap: 0.6rem;
+		}
+	}
 	.sliders {
 		display: flex;
 		align-items: flex-end;
