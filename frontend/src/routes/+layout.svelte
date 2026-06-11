@@ -39,10 +39,14 @@
 </div>
 
 <style>
-	/* it's an instrument: no sideways scroll, no rubber-band pull-to-refresh */
+	/* it's an instrument: no sideways scroll, no rubber-band pull-to-refresh,
+	   no text selection or iOS long-press callouts mid-performance */
 	:global(html, body) {
 		overflow-x: hidden;
 		overscroll-behavior: none;
+		user-select: none;
+		-webkit-user-select: none;
+		-webkit-touch-callout: none;
 	}
 	.shell {
 		max-width: 900px;
