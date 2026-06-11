@@ -13,7 +13,7 @@
 	import VuMeter from '$lib/components/VuMeter.svelte';
 	import WaveSelect from '$lib/components/WaveSelect.svelte';
 	import { engine, type LfoTarget } from '$lib/engine/engine';
-	import { clampOctave } from '$lib/engine/notes';
+	import { clampOctave, type Note } from '$lib/engine/notes';
 	import { params } from '$lib/params.svelte';
 
 	let octave = $state(5);
@@ -71,17 +71,19 @@
 		});
 		// the theme sits low — D-F-E-D around octave 4
 		octave = 4;
-		// ...and introduces itself: G C D E♭ D C A — the rising fourth, the
-		// dissonant E♭ wail over D minor, falling home to the dominant
+		// ...and introduces itself, call and answer:
+		// D E F E C → low F, then D E F E C → A
 		const now = engine.ensure().currentTime + 0.2;
 		const p = { ...params };
-		engine.play('G4', p, now, 0.75);
-		engine.play('C5', p, now + 0.85, 0.75);
-		engine.play('D5', p, now + 1.7, 0.45);
-		engine.play('D#5', p, now + 2.2, 0.45);
-		engine.play('D5', p, now + 2.7, 0.45);
-		engine.play('C5', p, now + 3.2, 0.75);
-		engine.play('A4', p, now + 4.05, 1.5);
+		const phrase = (at: number, last: Note, lastLen: number): void => {
+			engine.play('D5', p, at, 0.55);
+			engine.play('E5', p, at + 0.7, 0.55);
+			engine.play('F5', p, at + 1.4, 1.05);
+			engine.play('E5', p, at + 2.6, 0.55);
+			engine.play('C5', p, at + 3.3, 0.55);
+			engine.play(last, p, at + 4.0, lastLen);
+		};
+		phrase(now, 'F4', 1.5);
 	}
 
 	// the LFO is engine-global hardware — push param changes to it live
