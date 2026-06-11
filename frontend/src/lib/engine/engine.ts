@@ -37,8 +37,14 @@ export class SynthEngine {
 	private lfoRate = 0.4;
 	private lfoDepth = 0;
 	private lfoTarget: LfoTarget = 'off';
-	private lofiNodes: { wobble: GainNode; dry: GainNode; wet: GainNode; hiss: GainNode } | null =
-		null;
+	private lofiNodes: {
+		wobble: GainNode;
+		dry: GainNode;
+		wet: GainNode;
+		hiss: GainNode;
+		drop: GainNode;
+	} | null = null;
+	private dropTimer: ReturnType<typeof setTimeout> | null = null;
 	private lofiOn = false;
 	private bornAt = 0;
 
@@ -197,8 +203,9 @@ export class SynthEngine {
 
 	/**
 	 * Lo-fi section: tape wow+flutter on every voice's pitch, plus a master
-	 * wet path (bitcrush → bandwidth cut) crossfaded against the dry signal,
-	 * and a hiss bed. All gains are the switch — routing never changes.
+	 * wet path (bitcrush → bandwidth cut → chorus → plate reverb) crossfaded
+	 * against the dry signal, a hiss bed, and occasional VHS dropouts.
+	 * All gains are the switch — routing never changes.
 	 */
 	private buildLofi(ctx: AudioContext, master: DynamicsCompressorNode): void {
 		// pitch wobble: wow (slow, deep) + flutter (fast, shallow) → cents bus
@@ -232,12 +239,49 @@ export class SynthEngine {
 		const lowcut = ctx.createBiquadFilter();
 		lowcut.type = 'highpass';
 		lowcut.frequency.value = 120;
+		// chorus — the Juno move: a ~20ms delay wobbled by a slow LFO, summed
+		// with the straight signal
+		const chorusDelay = ctx.createDelay(0.06);
+		chorusDelay.delayTime.value = 0.02;
+		const chorusLfo = ctx.createOscillator();
+		chorusLfo.frequency.value = 0.7;
+		const chorusDepth = ctx.createGain();
+		chorusDepth.gain.value = 0.006;
+		chorusLfo.connect(chorusDepth).connect(chorusDelay.delayTime);
+		chorusLfo.start();
+		const chorusLevel = ctx.createGain();
+		chorusLevel.gain.value = 0.7;
+		const chorusSum = ctx.createGain();
+
+		// plate reverb — code-generated impulse: 1.2s of exponentially decaying
+		// noise, parallel send under the chorused signal
+		const irSeconds = 1.2;
+		const ir = ctx.createBuffer(2, ctx.sampleRate * irSeconds, ctx.sampleRate);
+		for (let ch = 0; ch < 2; ch++) {
+			const buf = ir.getChannelData(ch);
+			for (let i = 0; i < buf.length; i++) {
+				buf[i] = (Math.random() * 2 - 1) * Math.exp((-4 * i) / buf.length);
+			}
+		}
+		const plate = ctx.createConvolver();
+		plate.buffer = ir;
+		const plateLevel = ctx.createGain();
+		plateLevel.gain.value = 0.3;
+
+		// VHS dropout gate, normally fully open
+		const drop = ctx.createGain();
+		drop.gain.value = 1;
+
 		const wet = ctx.createGain();
 		wet.gain.value = 0;
 		master.connect(crusher);
 		crusher.connect(highcut);
 		highcut.connect(lowcut);
-		lowcut.connect(wet);
+		lowcut.connect(chorusSum);
+		lowcut.connect(chorusDelay).connect(chorusLevel).connect(chorusSum);
+		chorusSum.connect(drop);
+		chorusSum.connect(plate).connect(plateLevel).connect(drop);
+		drop.connect(wet);
 		wet.connect(this.out!);
 		// dry leg is the normal output path; ducks to 0 when the wet path is in
 		const dry = ctx.createGain();
@@ -261,7 +305,7 @@ export class SynthEngine {
 		hiss.connect(this.out!);
 		noise.start();
 
-		this.lofiNodes = { wobble, dry, wet, hiss };
+		this.lofiNodes = { wobble, dry, wet, hiss, drop };
 		this.applyLofi();
 	}
 
@@ -273,11 +317,38 @@ export class SynthEngine {
 	private applyLofi(): void {
 		if (!this.ctx || !this.lofiNodes) return;
 		const now = this.ctx.currentTime;
-		const { wobble, dry, wet, hiss } = this.lofiNodes;
+		const { wobble, dry, wet, hiss, drop } = this.lofiNodes;
 		wobble.gain.setTargetAtTime(this.lofiOn ? 1 : 0, now, 0.1);
 		dry.gain.setTargetAtTime(this.lofiOn ? 0 : 1, now, 0.05);
 		wet.gain.setTargetAtTime(this.lofiOn ? 1 : 0, now, 0.05);
-		hiss.gain.setTargetAtTime(this.lofiOn ? 0.006 : 0, now, 0.1);
+		hiss.gain.setTargetAtTime(this.lofiOn ? 0.0025 : 0, now, 0.1);
+		if (this.lofiOn && !this.dropTimer) this.scheduleDropout();
+		if (!this.lofiOn && this.dropTimer) {
+			clearTimeout(this.dropTimer);
+			this.dropTimer = null;
+			drop.gain.setTargetAtTime(1, now, 0.05);
+		}
+	}
+
+	// VHS dropout: every 8-15s the wet signal briefly dips and the pitch
+	// wobble spikes, like a worn spot rolling past the head
+	private scheduleDropout(): void {
+		this.dropTimer = setTimeout(
+			() => {
+				if (!this.ctx || !this.lofiNodes || !this.lofiOn) {
+					this.dropTimer = null;
+					return;
+				}
+				const now = this.ctx.currentTime;
+				const { drop, wobble } = this.lofiNodes;
+				drop.gain.setTargetAtTime(0.3, now, 0.02);
+				drop.gain.setTargetAtTime(1, now + 0.12, 0.06);
+				wobble.gain.setTargetAtTime(2.6, now, 0.02);
+				wobble.gain.setTargetAtTime(1, now + 0.15, 0.08);
+				this.scheduleDropout();
+			},
+			8000 + Math.random() * 7000
+		);
 	}
 
 	/**
@@ -361,6 +432,8 @@ export class SynthEngine {
 		this.lfoOsc = null;
 		this.lfoGain = null;
 		this.lofiNodes = null;
+		if (this.dropTimer) clearTimeout(this.dropTimer);
+		this.dropTimer = null;
 	}
 
 	stopAll(): void {
