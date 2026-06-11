@@ -49,6 +49,8 @@ export class Voice {
 	private glide: Glide | null = null;
 	private readonly startTime: number;
 	private readonly attack: number;
+	private readonly decay: number;
+	private readonly sustain: number;
 	private readonly release: number;
 
 	private endedUnits = 0;
@@ -67,6 +69,8 @@ export class Voice {
 		this.freq = freq;
 		this.startTime = when;
 		this.attack = params.attack;
+		this.decay = params.decay;
+		this.sustain = params.sustain;
 		this.release = params.release;
 		this.mods = mods;
 
@@ -222,8 +226,20 @@ export class Voice {
 	/** Release the note: let the attack finish, then ramp out and stop. */
 	stop(when: number): void {
 		const attackEnd = this.startTime + this.attack;
+		const decayEnd = attackEnd + this.decay;
 		const releaseStart = Math.max(when, attackEnd);
+		// Anchor the envelope at its actual value when the release begins —
+		// a bare linearRamp would interpolate from the last scheduled event
+		// (the decay endpoint, possibly long past), audibly snapping the gain
+		// down before ramping. The ADSR is piecewise-linear, so the value at
+		// releaseStart is exact.
+		const anchor =
+			releaseStart >= decayEnd
+				? this.sustain
+				: 1 - (1 - this.sustain) * ((releaseStart - attackEnd) / this.decay);
 		for (const unit of this.units) {
+			unit.envelope.gain.cancelScheduledValues(releaseStart);
+			unit.envelope.gain.setValueAtTime(anchor, releaseStart);
 			unit.envelope.gain.linearRampToValueAtTime(0, releaseStart + this.release);
 			unit.osc.stop(releaseStart + this.release);
 		}

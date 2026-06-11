@@ -3,14 +3,24 @@
 // WaveShaper distortion curve, from the MDN WaveShaperNode example.
 // Note: at amount 0 the curve is still ~x/3, i.e. it always attenuates —
 // that gain staging is part of the original sound, kept as-is.
+//
+// Memoized: this used to allocate a fresh 44.1k-sample array per oscillator
+// per note (7× per supersaw voice), and the resulting GC pauses were audible
+// as crackle under sequencer load. Curves are immutable once built and the
+// amount is a 0-100 slider, so the cache stays small.
+const curveCache = new Map<number, Float32Array<ArrayBuffer>>();
+
 export function makeDistortionCurve(amount: number): Float32Array<ArrayBuffer> {
-	const samples = 44100;
+	const cached = curveCache.get(amount);
+	if (cached) return cached;
+	const samples = 8192;
 	const curve = new Float32Array(samples);
 	const deg = Math.PI / 180;
 	for (let i = 0; i < samples; i++) {
 		const x = (i * 2) / samples - 1;
 		curve[i] = ((3 + amount) * x * 20 * deg) / (Math.PI + amount * Math.abs(x));
 	}
+	curveCache.set(amount, curve);
 	return curve;
 }
 
