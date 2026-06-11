@@ -53,7 +53,7 @@ export class Voice {
 
 	private endedUnits = 0;
 	private readonly filter: BiquadFilterNode;
-	private readonly lfo: LfoRoute | null;
+	private readonly mods: LfoRoute[];
 
 	constructor(
 		ctx: AudioContext,
@@ -62,13 +62,13 @@ export class Voice {
 		params: VoiceParams,
 		when = ctx.currentTime,
 		private readonly velocity = 1,
-		lfo: LfoRoute | null = null
+		mods: LfoRoute[] = []
 	) {
 		this.freq = freq;
 		this.startTime = when;
 		this.attack = params.attack;
 		this.release = params.release;
-		this.lfo = lfo;
+		this.mods = mods;
 
 		// Per-voice resonant lowpass; the filter envelope rides the same ADSR
 		// shape as the amp (sustain reuses the amp sustain level).
@@ -86,7 +86,9 @@ export class Voice {
 			);
 		}
 		this.filter.connect(destination);
-		if (lfo?.target === 'filter') lfo.node.connect(this.filter.frequency);
+		for (const mod of this.mods) {
+			if (mod.target === 'filter') mod.node.connect(this.filter.frequency);
+		}
 
 		if (params.wave === 'supersaw') {
 			const highpass = ctx.createBiquadFilter();
@@ -105,8 +107,10 @@ export class Voice {
 		} else {
 			this.units.push(this.createUnit(ctx, this.filter, params, 1, 1, 0, when));
 		}
-		if (lfo?.target === 'pitch') {
-			for (const unit of this.units) lfo.node.connect(unit.osc.detune);
+		for (const mod of this.mods) {
+			if (mod.target === 'pitch') {
+				for (const unit of this.units) mod.node.connect(unit.osc.detune);
+			}
 		}
 	}
 
@@ -146,7 +150,9 @@ export class Voice {
 		osc.start(when);
 
 		osc.onended = () => {
-			if (this.lfo?.target === 'pitch') this.lfo.node.disconnect(osc.detune);
+			for (const mod of this.mods) {
+				if (mod.target === 'pitch') mod.node.disconnect(osc.detune);
+			}
 			osc.disconnect();
 			shaper.disconnect();
 			envelope.disconnect();
@@ -154,7 +160,9 @@ export class Voice {
 			panner.disconnect();
 			// last unit out tears down the shared per-voice nodes
 			if (++this.endedUnits === this.units.length) {
-				if (this.lfo?.target === 'filter') this.lfo.node.disconnect(this.filter.frequency);
+				for (const mod of this.mods) {
+					if (mod.target === 'filter') mod.node.disconnect(this.filter.frequency);
+				}
 				this.filter.disconnect();
 			}
 		};

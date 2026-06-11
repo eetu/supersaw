@@ -13,7 +13,8 @@
 
 	const tabs = [
 		{ href: '/', label: 'synth' },
-		{ href: '/seq', label: 'sequencer' }
+		{ href: '/seq', label: 'sequencer' },
+		{ href: '/pad', label: 'pad' }
 	] as const;
 </script>
 

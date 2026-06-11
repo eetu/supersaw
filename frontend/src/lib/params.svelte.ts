@@ -19,5 +19,6 @@ export const params: SynthParams = $state({
 	glide: 0,
 	lfoRate: 0.4,
 	lfoDepth: 0,
-	lfoTarget: 'off'
+	lfoTarget: 'off',
+	tape: false
 });

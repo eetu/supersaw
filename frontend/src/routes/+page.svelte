@@ -9,13 +9,18 @@
 	import Panel from '$lib/components/Panel.svelte';
 	import PitchWheel from '$lib/components/PitchWheel.svelte';
 	import RangeSlider from '$lib/components/RangeSlider.svelte';
+	import TiltBend from '$lib/components/TiltBend.svelte';
 	import VuMeter from '$lib/components/VuMeter.svelte';
 	import WaveSelect from '$lib/components/WaveSelect.svelte';
 	import { engine, type LfoTarget } from '$lib/engine/engine';
 	import { clampOctave } from '$lib/engine/notes';
+	import { initGhost } from '$lib/ghost.svelte';
 	import { params } from '$lib/params.svelte';
 
 	let octave = $state(5);
+
+	// idle ghost player lives with the synth view
+	$effect(() => initGhost());
 
 	// portrait phones: shaping sliders are collapsed by default (CSS shows them
 	// unconditionally on bigger screens, the toggle button only exists there)
@@ -51,6 +56,7 @@
 
 	// the LFO is engine-global hardware — push param changes to it live
 	$effect(() => engine.setLfo(params.lfoRate, params.lfoDepth, params.lfoTarget));
+	$effect(() => engine.setTape(params.tape));
 	// filter knobs retarget already-sounding voices too
 	$effect(() =>
 		engine.setFilter(params.cutoff, params.resonance, params.filterEnv, params.sustain)
@@ -77,6 +83,7 @@
 			>
 				shaping
 			</button>
+			<FlipSwitch label="tape" bind:checked={params.tape} />
 			<FlipSwitch label="poly" bind:checked={params.poly} />
 		</div>
 	</header>
@@ -131,6 +138,7 @@
 
 <Panel title="keyboard">
 	{#snippet actions()}
+		<TiltBend />
 		<div class="octave">
 			<button
 				type="button"

@@ -12,9 +12,12 @@ export type SynthParams = VoiceParams & {
 	/** LFO depth 0..1 */
 	lfoDepth: number;
 	lfoTarget: LfoTarget;
+	/** tape mode: wow+flutter pitch wobble */
+	tape: boolean;
 };
 
 const MONO_VOICE = 'mono';
+const PAD_VOICE = '~pad';
 
 // The shared audio graph: voices → compressor → destination, with an analyser
 // tap for the oscilloscope. The AudioContext is created lazily on the first
@@ -32,6 +35,8 @@ export class SynthEngine {
 	private lfoRate = 0.4;
 	private lfoDepth = 0;
 	private lfoTarget: LfoTarget = 'off';
+	private tapeNodes: { wow: OscillatorNode; flutter: OscillatorNode; out: GainNode } | null = null;
+	private tapeOn = false;
 
 	/** Fired when another tab claims the audio output (we release ours). */
 	onReleased: (() => void) | null = null;
@@ -67,6 +72,24 @@ export class SynthEngine {
 			this.lfoOsc.connect(this.lfoGain);
 			this.lfoOsc.start();
 			this.applyLfo();
+			// tape wobble: wow (slow, deep) + flutter (fast, shallow) summed into
+			// one cents-bus that every voice's pitch listens to; the output gain
+			// is the on/off switch so routing never changes
+			const wow = this.ctx.createOscillator();
+			wow.frequency.value = 0.6;
+			const wowDepth = this.ctx.createGain();
+			wowDepth.gain.value = 9;
+			const flutter = this.ctx.createOscillator();
+			flutter.frequency.value = 6.3;
+			const flutterDepth = this.ctx.createGain();
+			flutterDepth.gain.value = 2.5;
+			const out = this.ctx.createGain();
+			out.gain.value = this.tapeOn ? 1 : 0;
+			wow.connect(wowDepth).connect(out);
+			flutter.connect(flutterDepth).connect(out);
+			wow.start();
+			flutter.start();
+			this.tapeNodes = { wow, flutter, out };
 			// Safari parks the context as suspended/"interrupted" across system
 			// sleep and tab switches and doesn't always wake it on its own —
 			// kick it whenever the page becomes visible again.
@@ -107,15 +130,52 @@ export class SynthEngine {
 		when: number,
 		velocity = 1
 	): Voice {
-		const voice = new Voice(ctx, this.master!, freq, params, when, velocity, this.lfoRoute());
+		const voice = new Voice(ctx, this.master!, freq, params, when, velocity, this.modRoutes());
 		if (this.bendCents !== 0) voice.bend(this.bendCents, when);
 		return voice;
 	}
 
-	private lfoRoute(): LfoRoute | null {
-		return this.lfoTarget !== 'off' && this.lfoGain
-			? { node: this.lfoGain, target: this.lfoTarget }
-			: null;
+	private modRoutes(): LfoRoute[] {
+		const mods: LfoRoute[] = [];
+		if (this.lfoTarget !== 'off' && this.lfoGain) {
+			mods.push({ node: this.lfoGain, target: this.lfoTarget });
+		}
+		// tape bus is always wired (its gain is the switch)
+		if (this.tapeNodes) mods.push({ node: this.tapeNodes.out, target: 'pitch' });
+		return mods;
+	}
+
+	// --- theremin pad: one continuous voice with direct frequency control ---
+
+	padOn(freq: number, params: VoiceParams): void {
+		const ctx = this.ensure();
+		const now = ctx.currentTime;
+		this.voices.get(PAD_VOICE)?.stop(now);
+		this.voices.set(PAD_VOICE, this.createVoice(ctx, freq, params, now));
+	}
+
+	padGlide(freq: number): void {
+		if (!this.ctx) return;
+		this.voices.get(PAD_VOICE)?.setFrequency(freq, 0.04, this.ctx.currentTime);
+	}
+
+	padFilter(cutoff: number, resonance: number, sustain: number): void {
+		if (!this.ctx) return;
+		this.voices.get(PAD_VOICE)?.setFilter(cutoff, resonance, 0, sustain, this.ctx.currentTime);
+	}
+
+	padOff(): void {
+		if (!this.ctx) return;
+		this.voices.get(PAD_VOICE)?.stop(this.ctx.currentTime);
+		this.voices.delete(PAD_VOICE);
+	}
+
+	/** Tape mode: wow+flutter pitch wobble on everything, lofi in one switch. */
+	setTape(on: boolean): void {
+		this.tapeOn = on;
+		if (this.ctx && this.tapeNodes) {
+			this.tapeNodes.out.gain.setTargetAtTime(on ? 1 : 0, this.ctx.currentTime, 0.1);
+		}
 	}
 
 	/**
@@ -195,6 +255,7 @@ export class SynthEngine {
 		this.analyserNode = null;
 		this.lfoOsc = null;
 		this.lfoGain = null;
+		this.tapeNodes = null;
 	}
 
 	stopAll(): void {

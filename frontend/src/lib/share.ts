@@ -40,7 +40,8 @@ export function shareUrl(): string {
 		fe: String(params.filterEnv),
 		lr: String(params.lfoRate),
 		ld: String(params.lfoDepth),
-		lt: String(LFO_TARGETS.indexOf(params.lfoTarget))
+		lt: String(LFO_TARGETS.indexOf(params.lfoTarget)),
+		tp: params.tape ? '1' : '0'
 	});
 	return `${location.origin}${location.pathname}#${q.toString()}`;
 }
@@ -92,4 +93,5 @@ export function applyShareHash(): void {
 	num('lr', 0, 1, (v) => (params.lfoRate = v));
 	num('ld', 0, 1, (v) => (params.lfoDepth = v));
 	num('lt', 0, LFO_TARGETS.length - 1, (v) => (params.lfoTarget = LFO_TARGETS[Math.round(v)]));
+	num('tp', 0, 1, (v) => (params.tape = v >= 0.5));
 }
