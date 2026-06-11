@@ -1,6 +1,17 @@
 <script lang="ts">
 	import Panel from '$lib/components/Panel.svelte';
 	import { clearGrid, ROWS, seq, togglePlay } from '$lib/sequencer.svelte';
+	import { shareUrl } from '$lib/share';
+
+	let copied = $state(false);
+
+	async function share(): Promise<void> {
+		const url = shareUrl();
+		history.replaceState(null, '', url);
+		await navigator.clipboard.writeText(url);
+		copied = true;
+		setTimeout(() => (copied = false), 1500);
+	}
 
 	// Drag-to-draw: pointerdown picks the brush value (inverse of the hit pad),
 	// dragging paints it across pads. null = not painting.
@@ -31,6 +42,17 @@
 				<span>{seq.tempo} bpm</span>
 				<input type="range" min="40" max="240" step="1" bind:value={seq.tempo} />
 			</label>
+			<button
+				type="button"
+				class="ghost"
+				class:lit={seq.evolve}
+				aria-pressed={seq.evolve}
+				onclick={() => (seq.evolve = !seq.evolve)}
+				title="grid evolves by Conway's rules every loop"
+			>
+				life
+			</button>
+			<button type="button" class="ghost" onclick={share}>{copied ? 'copied' : 'share'}</button>
 			<button type="button" class="ghost" onclick={clearGrid}>clear</button>
 			<button type="button" class="play" class:on={seq.playing} onclick={togglePlay}>
 				{seq.playing ? 'stop' : 'play'}
@@ -132,6 +154,10 @@
 	}
 	.ghost:hover {
 		color: var(--halo-text-main);
+	}
+	.ghost.lit {
+		background: var(--halo-accent-soft);
+		color: var(--halo-accent);
 	}
 	.play {
 		background: var(--halo-accent-soft);

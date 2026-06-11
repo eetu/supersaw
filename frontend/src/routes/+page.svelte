@@ -32,6 +32,7 @@
 			{#if params.wave === 'supersaw'}
 				<RangeSlider label="detune" bind:value={params.detune} step={0.1} />
 				<RangeSlider label="mix" bind:value={params.mix} step={0.1} />
+				<RangeSlider label="spread" bind:value={params.spread} step={0.1} />
 			{/if}
 			<RangeSlider label="att" bind:value={params.attack} />
 			<RangeSlider label="dec" bind:value={params.decay} />

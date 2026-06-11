@@ -11,6 +11,7 @@ export const params: SynthParams = $state({
 	distortion: 0,
 	detune: 0.4,
 	mix: 0.75,
+	spread: 0.6,
 	poly: true,
 	glide: 0
 });

@@ -4,8 +4,12 @@
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import Wordmark from '$lib/components/Wordmark.svelte';
+	import { applyShareHash } from '$lib/share';
 
 	let { children } = $props();
+
+	// shared pattern/patch links carry state in the hash — apply once on boot
+	$effect(() => applyShareHash());
 
 	const tabs = [
 		{ href: '/', label: 'synth' },

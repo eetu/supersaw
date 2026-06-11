@@ -13,7 +13,12 @@ export type VoiceParams = {
 	detune: number;
 	/** supersaw only, 0..1 */
 	mix: number;
+	/** supersaw only, 0..1 — stereo width of the 7 saws */
+	spread: number;
 };
+
+// pan positions per saw, scaled by the spread param (centre osc stays centre)
+const PAN_POSITIONS = [-1, -0.7, -0.35, 0, 0.35, 0.7, 1];
 
 type OscUnit = {
 	osc: OscillatorNode;
@@ -55,10 +60,13 @@ export class Voice {
 			detuneRatios(params.detune).forEach((ratio, i) => {
 				// stagger starts ≤10ms so the saws don't begin phase-aligned
 				const stagger = Math.random() / 100;
-				this.units.push(this.createUnit(ctx, highpass, params, ratio, levels[i], when + stagger));
+				const pan = PAN_POSITIONS[i] * params.spread;
+				this.units.push(
+					this.createUnit(ctx, highpass, params, ratio, levels[i], pan, when + stagger)
+				);
 			});
 		} else {
-			this.units.push(this.createUnit(ctx, destination, params, 1, 1, when));
+			this.units.push(this.createUnit(ctx, destination, params, 1, 1, 0, when));
 		}
 	}
 
@@ -68,6 +76,7 @@ export class Voice {
 		params: VoiceParams,
 		ratio: number,
 		level: number,
+		pan: number,
 		when: number
 	): OscUnit {
 		const osc = ctx.createOscillator();
@@ -86,10 +95,14 @@ export class Voice {
 		const levelGain = ctx.createGain();
 		levelGain.gain.setValueAtTime(level, when);
 
+		const panner = ctx.createStereoPanner();
+		panner.pan.value = pan;
+
 		osc.connect(shaper);
 		shaper.connect(envelope);
 		envelope.connect(levelGain);
-		levelGain.connect(target);
+		levelGain.connect(panner);
+		panner.connect(target);
 		osc.start(when);
 
 		osc.onended = () => {
@@ -97,6 +110,7 @@ export class Voice {
 			shaper.disconnect();
 			envelope.disconnect();
 			levelGain.disconnect();
+			panner.disconnect();
 		};
 
 		return { osc, envelope, ratio };
