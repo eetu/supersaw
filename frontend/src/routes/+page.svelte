@@ -9,6 +9,7 @@
 	import Panel from '$lib/components/Panel.svelte';
 	import PitchWheel from '$lib/components/PitchWheel.svelte';
 	import RangeSlider from '$lib/components/RangeSlider.svelte';
+	import ShadesIcon from '$lib/components/ShadesIcon.svelte';
 	import TiltBend from '$lib/components/TiltBend.svelte';
 	import VuMeter from '$lib/components/VuMeter.svelte';
 	import WaveSelect from '$lib/components/WaveSelect.svelte';
@@ -49,7 +50,13 @@
 	// Easter egg: the T2 lead (Fiedel's Synclavier brass) — tight supersaw,
 	// slow swell, dark filter that opens on attack, mono with a touch of glide.
 	// Only reachable from lo-fi mode; leaves the lo-fi switch itself alone.
+	// one intro at a time — spamming the button stacked overlapping phrases
+	let t2Playing = $state(false);
+
 	function t2(): void {
+		if (t2Playing) return;
+		t2Playing = true;
+		setTimeout(() => (t2Playing = false), 6000);
 		Object.assign(params, {
 			wave: 'supersaw',
 			detune: 0.2,
@@ -64,8 +71,8 @@
 			resonance: 0.2,
 			filterEnv: 0.35,
 			lfoRate: 0.2,
-			lfoDepth: 0.1,
-			lfoTarget: 'filter',
+			lfoDepth: 0,
+			lfoTarget: 'off',
 			poly: false,
 			glide: 0.05
 		});
@@ -105,7 +112,9 @@
 		</nav>
 		<div class="header-actions">
 			{#if params.lofi}
-				<button type="button" class="t2" onclick={t2} title="hasta la vista">t2</button>
+				<button type="button" class="t2" onclick={t2} disabled={t2Playing} title="hasta la vista">
+					<ShadesIcon size={18} />
+				</button>
 			{/if}
 			<button type="button" class="dice" onclick={randomize} title="randomize controls">
 				<Dices size={20} aria-hidden="true" />
@@ -210,9 +219,8 @@
 	}
 	/* easter egg — T-800 eye red, only alive in lo-fi mode */
 	.t2 {
-		font-family: var(--halo-font-heading);
-		font-size: 0.7rem;
-		padding: 0.25rem 0.5rem;
+		display: inline-flex;
+		padding: 0.25rem 0.4rem;
 		border: none;
 		border-radius: var(--halo-radius-pill);
 		background: var(--halo-bg-light);
@@ -222,6 +230,11 @@
 	}
 	.t2:hover {
 		box-shadow: 0 0 8px 1px rgba(255, 60, 60, 0.45);
+	}
+	.t2:disabled {
+		opacity: 0.4;
+		cursor: default;
+		box-shadow: none;
 	}
 	.dice {
 		display: inline-flex;
