@@ -71,6 +71,13 @@
 		});
 		// the theme sits low — D-F-E-D around octave 4
 		octave = 4;
+		// ...and introduces itself
+		const now = engine.ensure().currentTime + 0.2;
+		const p = { ...params };
+		engine.play('D4', p, now, 0.9);
+		engine.play('F4', p, now + 1.05, 0.4);
+		engine.play('E4', p, now + 1.5, 0.4);
+		engine.play('D4', p, now + 1.95, 1.3);
 	}
 
 	// the LFO is engine-global hardware — push param changes to it live
