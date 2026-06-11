@@ -296,10 +296,23 @@
 		.controls {
 			width: 100%;
 			flex-wrap: wrap;
-			gap: 0.4rem 0.6rem;
+			gap: 0.4rem 0.5rem;
 		}
+		/* sliders: one full-width row each, labels aligned; buttons share a row */
+		.mini {
+			width: 100%;
+		}
+		.mini span {
+			flex: none;
+			width: 3.6rem;
+		}
+		.mini input,
 		.tempo input {
-			width: 6rem;
+			flex: 1;
+			width: auto;
+		}
+		.controls button {
+			flex: 1;
 		}
 	}
 </style>
