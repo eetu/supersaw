@@ -12,7 +12,6 @@
 	<span class="name">{label}</span>
 	<input type="checkbox" bind:checked />
 	<span class="track" aria-hidden="true"><span class="knob"></span></span>
-	<span class="state">{checked ? 'on' : 'off'}</span>
 </label>
 
 <style>
@@ -61,10 +60,5 @@
 	input:focus-visible + .track {
 		outline: 2px solid var(--halo-accent);
 		outline-offset: 2px;
-	}
-	.state {
-		font-size: 0.75rem;
-		color: var(--halo-text-muted);
-		width: 1.5rem;
 	}
 </style>
