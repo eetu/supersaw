@@ -78,12 +78,6 @@
 		const gap = (portrait() ? 0.2 : 0.4) * rem();
 		const budget = winH - plateTop - 2.5 * rem();
 		const fit = Math.floor(budget / (cellPx + gap));
-		if (import.meta.env.DEV) {
-			console.debug(
-				`[seq-fit] winH=${winH} plateTop=${Math.round(plateTop)} gridW=${gridW} ` +
-					`cellPx=${Math.round(cellPx)} budget=${Math.round(budget)} fit=${fit}`
-			);
-		}
 		return Math.max(2, Math.min(fit, ROWS.length));
 	});
 	const maxTop = $derived(ROWS.length - visibleRows);
