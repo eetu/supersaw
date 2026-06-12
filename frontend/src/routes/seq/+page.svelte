@@ -226,6 +226,7 @@
 			0 1px 2px rgba(0, 0, 0, 0.25);
 	}
 	.cell {
+		position: relative;
 		width: 100%;
 		aspect-ratio: 1;
 		padding: 0;
@@ -239,6 +240,13 @@
 		transition:
 			background var(--halo-d-fast),
 			box-shadow var(--halo-d-fast);
+	}
+	/* invisible hit-slop: taps landing in the gaps still hit the nearest pad
+	   (each pad claims half the gap — crucial at iPhone pad sizes) */
+	.cell::after {
+		content: '';
+		position: absolute;
+		inset: -0.1rem;
 	}
 	.cell.beat {
 		background: #333130;
