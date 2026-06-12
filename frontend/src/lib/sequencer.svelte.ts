@@ -42,9 +42,16 @@ function lifeStep(): void {
 			return n === 3 ? 3 : 0;
 		})
 	);
+	let alive = 0;
 	for (const [r, row] of seq.grid.entries()) {
-		for (let c = 0; c < STEPS; c++) row[c] = next[r][c];
+		for (let c = 0; c < STEPS; c++) {
+			row[c] = next[r][c];
+			if (row[c] > 0) alive++;
+		}
 	}
+	// extinction switches life off — Conway kills sparse patterns in one
+	// generation, and a silently-empty evolving grid reads as a bug
+	if (alive === 0) seq.evolve = false;
 }
 
 function onStep(step: number, time: number): void {
