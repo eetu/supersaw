@@ -1,6 +1,8 @@
 <script lang="ts">
 	import type { Waveform } from '$lib/engine/voice';
 
+	import WaveIcon from './WaveIcon.svelte';
+
 	let {
 		value = $bindable()
 	}: {
@@ -16,10 +18,12 @@
 			type="button"
 			role="radio"
 			aria-checked={value === wave}
+			aria-label={wave}
+			title={wave}
 			class:active={value === wave}
 			onclick={() => (value = wave)}
 		>
-			{wave}
+			<WaveIcon {wave} />
 		</button>
 	{/each}
 </div>
@@ -31,9 +35,10 @@
 		gap: 0.25rem;
 	}
 	button {
-		font-family: var(--halo-font-heading);
-		font-size: 0.8rem;
-		padding: 0.35rem 0.7rem;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		padding: 0.35rem 0.55rem;
 		border: none;
 		border-radius: var(--halo-radius-pill);
 		background: var(--halo-bg-light);
@@ -50,13 +55,11 @@
 		background: var(--halo-accent-soft);
 		color: var(--halo-accent);
 	}
-	/* Portrait phone: tighter pills so all five waveforms share one row. */
 	@media (max-width: 640px) and (orientation: portrait) {
 		.waves {
 			gap: 0.2rem;
 		}
 		button {
-			font-size: 0.7rem;
 			padding: 0.3rem 0.45rem;
 		}
 	}
