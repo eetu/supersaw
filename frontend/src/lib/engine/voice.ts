@@ -75,10 +75,12 @@ export class Voice {
 	) {
 		this.freq = freq;
 		this.startTime = when;
-		this.attack = params.attack;
-		this.decay = params.decay;
+		// floors: a zero-length ramp is a discontinuity — an audible click.
+		// Hardware envelopes clamp the same way.
+		this.attack = Math.max(params.attack, 0.003);
+		this.decay = Math.max(params.decay, 0.003);
 		this.sustain = params.sustain;
-		this.release = params.release;
+		this.release = Math.max(params.release, 0.01);
 		this.mods = mods;
 
 		// Per-voice resonant lowpass; the filter envelope rides the same ADSR
@@ -90,10 +92,10 @@ export class Voice {
 		this.filter.frequency.setValueAtTime(base, when);
 		if (params.filterEnv > 0) {
 			const peak = Math.min(base * 2 ** (params.filterEnv * 4), 16000);
-			this.filter.frequency.linearRampToValueAtTime(peak, when + params.attack);
+			this.filter.frequency.linearRampToValueAtTime(peak, when + this.attack);
 			this.filter.frequency.linearRampToValueAtTime(
-				base + (peak - base) * params.sustain,
-				when + params.attack + params.decay
+				base + (peak - base) * this.sustain,
+				when + this.attack + this.decay
 			);
 		}
 		this.filter.connect(destination);
@@ -150,8 +152,8 @@ export class Voice {
 
 		const envelope = ctx.createGain();
 		envelope.gain.setValueAtTime(0, when);
-		envelope.gain.linearRampToValueAtTime(1, when + params.attack);
-		envelope.gain.linearRampToValueAtTime(params.sustain, when + params.attack + params.decay);
+		envelope.gain.linearRampToValueAtTime(1, when + this.attack);
+		envelope.gain.linearRampToValueAtTime(this.sustain, when + this.attack + this.decay);
 
 		const levelGain = ctx.createGain();
 		levelGain.gain.setValueAtTime(level * this.velocity * (shaper ? 1 : 1 / 3), when);
