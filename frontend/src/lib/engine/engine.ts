@@ -17,6 +17,16 @@ export type SynthParams = VoiceParams & {
 };
 
 const MONO_VOICE = 'mono';
+
+const IS_IOS =
+	typeof navigator !== 'undefined' &&
+	(/iP(hone|ad|od)/.test(navigator.userAgent) ||
+		(navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1));
+
+// Voice budget in oscillator units (a supersaw voice = 7, others = 1).
+// Phones underrun far earlier than desktops; when the budget is exceeded the
+// oldest releasing voice is stolen first, then the oldest playing one.
+const MAX_UNITS = IS_IOS ? 28 : 64;
 const PAD_VOICE = '~pad';
 
 // The shared audio graph: voices → compressor → destination, with an analyser
@@ -49,6 +59,8 @@ export class SynthEngine {
 	private dropTimer: ReturnType<typeof setTimeout> | null = null;
 	private lofiOn = false;
 	private bornAt = 0;
+	private live: Voice[] = [];
+	private liveUnits = 0;
 
 	/** Fired when another tab claims the audio output (we release ours). */
 	onReleased: (() => void) | null = null;
@@ -87,10 +99,7 @@ export class SynthEngine {
 			// hack stopped working on recent iOS.) We're inside the first user
 			// gesture here, so play() is permitted.
 			this.out = this.ctx.createGain();
-			const ios =
-				/iP(hone|ad|od)/.test(navigator.userAgent) ||
-				(navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-			if (ios) {
+			if (IS_IOS) {
 				const mediaDest = this.ctx.createMediaStreamDestination();
 				this.out.connect(mediaDest);
 				const el = document.createElement('audio');
@@ -158,9 +167,30 @@ export class SynthEngine {
 		when: number,
 		velocity = 1
 	): Voice {
+		this.reserveUnits(params.wave === 'supersaw' ? 7 : 1, ctx.currentTime);
 		const voice = new Voice(ctx, this.master!, freq, params, when, velocity, this.modRoutes());
 		if (this.bendCents !== 0) voice.bend(this.bendCents, when);
+		this.live.push(voice);
+		this.liveUnits += voice.unitCount;
+		voice.onEnded = () => this.unregister(voice);
 		return voice;
+	}
+
+	private unregister(voice: Voice): void {
+		const i = this.live.indexOf(voice);
+		if (i === -1) return;
+		this.live.splice(i, 1);
+		this.liveUnits -= voice.unitCount;
+	}
+
+	/** Steal voices until `needed` units fit the budget — releasing ones first,
+	 * then oldest-first. Keeps the graph inside what the device can render. */
+	private reserveUnits(needed: number, now: number): void {
+		while (this.liveUnits + needed > MAX_UNITS && this.live.length > 0) {
+			const victim = this.live.find((v) => v.releasing) ?? this.live[0];
+			victim.kill(now);
+			this.unregister(victim);
+		}
 	}
 
 	private modRoutes(): LfoRoute[] {
@@ -462,6 +492,8 @@ export class SynthEngine {
 		this.lfoGain = null;
 		this.lofiNodes = null;
 		this.wetConnected = false;
+		this.live = [];
+		this.liveUnits = 0;
 		if (this.dropTimer) clearTimeout(this.dropTimer);
 		this.dropTimer = null;
 	}
@@ -469,9 +501,10 @@ export class SynthEngine {
 	stopAll(): void {
 		if (!this.ctx) return;
 		const now = this.ctx.currentTime;
-		for (const voice of this.voices.values()) voice.stop(now);
+		// kill, not stop: scheduled one-shots already have a release scheduled,
+		// and stop() is a no-op the second time
+		for (const voice of [...this.live]) voice.kill(now);
 		this.voices.clear();
-		for (const voice of this.scheduled) voice.stop(now);
 		this.scheduled.clear();
 	}
 }

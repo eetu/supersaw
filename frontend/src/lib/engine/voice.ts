@@ -54,8 +54,15 @@ export class Voice {
 	private readonly release: number;
 
 	private endedUnits = 0;
+	private stopped = false;
+	private dead = false;
 	private readonly filter: BiquadFilterNode;
 	private readonly mods: LfoRoute[];
+
+	/** true once release (or kill) has been scheduled — steal these first */
+	releasing = false;
+	/** fired when the last oscillator ends (engine voice accounting) */
+	onEnded: (() => void) | null = null;
 
 	constructor(
 		ctx: AudioContext,
@@ -178,6 +185,7 @@ export class Voice {
 					if (mod.target === 'filter') mod.node.disconnect(this.filter.frequency);
 				}
 				this.filter.disconnect();
+				this.onEnded?.();
 			}
 		};
 
@@ -233,8 +241,34 @@ export class Voice {
 		}
 	}
 
+	get unitCount(): number {
+		return this.units.length;
+	}
+
+	/**
+	 * Voice stealing: fast click-free fade-out (~20ms) and stop. Unlike stop()
+	 * it ignores attack/release — the budget needs the units back now.
+	 */
+	kill(now: number): void {
+		// runs even after stop(): it must override an already-scheduled release
+		// (sequencer one-shots schedule theirs at creation)
+		if (this.dead) return;
+		this.dead = true;
+		this.stopped = true;
+		this.releasing = true;
+		for (const unit of this.units) {
+			unit.envelope.gain.cancelScheduledValues(now);
+			// setTargetAtTime starts from the current value — no anchor needed
+			unit.envelope.gain.setTargetAtTime(0, now, 0.015);
+			unit.osc.stop(now + 0.08);
+		}
+	}
+
 	/** Release the note: let the attack finish, then ramp out and stop. */
 	stop(when: number): void {
+		if (this.stopped) return;
+		this.stopped = true;
+		this.releasing = true;
 		const attackEnd = this.startTime + this.attack;
 		const decayEnd = attackEnd + this.decay;
 		const releaseStart = Math.max(when, attackEnd);
