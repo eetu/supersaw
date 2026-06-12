@@ -1,6 +1,6 @@
 import { detuneRatios, makeDistortionCurve, mixLevels, valueAtTime } from './curves.ts';
 
-export type Waveform = 'sine' | 'square' | 'sawtooth' | 'triangle' | 'supersaw';
+export type Waveform = 'sine' | 'square' | 'sawtooth' | 'triangle' | 'supersaw' | 'organ';
 
 export type VoiceParams = {
 	wave: Waveform;
@@ -32,17 +32,50 @@ export function cutoffHz(x: number): number {
 // pan positions per saw, scaled by the spread param (centre osc stays centre)
 const PAN_POSITIONS = [-1, -0.7, -0.35, 0, 0.35, 0.7, 1];
 
+// --- Hammond ---------------------------------------------------------------
+// Tonewheels are near-sines, so a PeriodicWave of sine partials IS the
+// instrument. Drawbar pitches include the 16' sub-octave (0.5×) and the
+// 5 1/3' quint (1.5×) — non-integer harmonics a PeriodicWave can't hold — so
+// the wave is built at HALF the played note and every drawbar lands on an
+// integer bin (ratio × 2). The oscillator then runs at freq/2 (ORGAN_RATIO).
+//
+// Registration: 888800000-ish, the Green Onions / blues shout setting, with a
+// whisper of 1' on top. Drawbar steps are ~3 dB each.
+const DRAWBAR_BINS = [1, 2, 3, 4, 6, 8, 10, 12, 16]; // 16' 8' 5⅓' 4' 2⅔' 2' 1⅗' 1⅓' 1' at half-pitch
+const DRAWBAR_SETTING = [8, 8, 8, 8, 0, 0, 0, 0, 2];
+export const ORGAN_RATIO = 0.5;
+
+const organWaves = new WeakMap<AudioContext, PeriodicWave>();
+
+function getOrganWave(ctx: AudioContext): PeriodicWave {
+	let wave = organWaves.get(ctx);
+	if (!wave) {
+		const size = Math.max(...DRAWBAR_BINS) + 1;
+		const real = new Float32Array(size);
+		const imag = new Float32Array(size);
+		DRAWBAR_BINS.forEach((bin, i) => {
+			const drawbar = DRAWBAR_SETTING[i];
+			if (drawbar > 0) imag[bin] = 10 ** ((-3 * (8 - drawbar)) / 20);
+		});
+		wave = ctx.createPeriodicWave(real, imag);
+		organWaves.set(ctx, wave);
+	}
+	return wave;
+}
+// ---------------------------------------------------------------------------
+
 type OscUnit = {
 	osc: OscillatorNode;
 	envelope: GainNode;
-	/** frequency ratio vs the voice's base frequency (1 except for detuned saws) */
+	/** frequency ratio vs the voice's base frequency (detuned saws; organ runs at 0.5) */
 	ratio: number;
 };
 
 type Glide = { startTime: number; from: number; to: number; duration: number };
 
 // One sounding note: oscillator(s) → waveshaper → ADSR gain → level gain → destination.
-// "supersaw" = 7 detuned sawtooths through a shared 200 Hz highpass (Szabó 2010, see curves.ts).
+// "supersaw" = 7 detuned sawtooths through a shared fundamental-tracking highpass
+// (Szabó 2010, see curves.ts). "organ" = a Hammond drawbar PeriodicWave (above).
 export class Voice {
 	private units: OscUnit[] = [];
 	private freq: number;
@@ -123,7 +156,9 @@ export class Voice {
 				);
 			});
 		} else {
-			this.units.push(this.createUnit(ctx, this.filter, params, 1, 1, 0, when));
+			// organ's PeriodicWave is built at half pitch (sub-octave drawbar)
+			const ratio = params.wave === 'organ' ? ORGAN_RATIO : 1;
+			this.units.push(this.createUnit(ctx, this.filter, params, ratio, 1, 0, when));
 		}
 		for (const mod of this.mods) {
 			if (mod.target === 'pitch') {
@@ -142,7 +177,11 @@ export class Voice {
 		when: number
 	): OscUnit {
 		const osc = ctx.createOscillator();
-		osc.type = params.wave === 'supersaw' ? 'sawtooth' : params.wave;
+		if (params.wave === 'organ') {
+			osc.setPeriodicWave(getOrganWave(ctx));
+		} else {
+			osc.type = params.wave === 'supersaw' ? 'sawtooth' : params.wave;
+		}
 		osc.frequency.value = this.freq * ratio;
 
 		// The 4x-oversampled waveshaper is the most expensive node in the voice
@@ -259,8 +298,8 @@ export class Voice {
 	}
 
 	/**
-	 * Voice stealing: fast click-free fade-out (~20ms) and stop. Unlike stop()
-	 * it ignores attack/release — the budget needs the units back now.
+	 * Voice stealing: fast click-free fade-out and stop. Unlike stop() it
+	 * ignores attack/release — the budget needs the units back now.
 	 */
 	kill(now: number): void {
 		// runs even after stop(): it must override an already-scheduled release

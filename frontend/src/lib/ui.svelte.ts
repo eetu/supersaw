@@ -12,7 +12,7 @@ export const ui = $state({
 });
 
 const lfoTargets: LfoTarget[] = ['off', 'pitch', 'filter'];
-const waves = ['sine', 'square', 'sawtooth', 'triangle', 'supersaw'] as const;
+const waves = ['sine', 'square', 'sawtooth', 'triangle', 'supersaw', 'organ'] as const;
 
 // Randomize the sound, constrained to stay audible and non-hostile:
 // cutoff never fully closed, resonance off the self-oscillation zone,

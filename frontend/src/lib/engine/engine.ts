@@ -61,6 +61,7 @@ export class SynthEngine {
 	private bornAt = 0;
 	private live: Voice[] = [];
 	private liveUnits = 0;
+	private rotaryIn: GainNode | null = null;
 
 	/** Fired when another tab claims the audio output (we release ours). */
 	onReleased: (() => void) | null = null;
@@ -117,6 +118,7 @@ export class SynthEngine {
 			this.lfoOsc.start();
 			this.applyLfo();
 			this.buildLofi(this.ctx, this.master);
+			this.buildRotary(this.ctx, this.master);
 			// Safari parks the context as suspended/"interrupted" across system
 			// sleep and tab switches and doesn't always wake it on its own —
 			// kick context + media element whenever the page becomes visible.
@@ -168,7 +170,9 @@ export class SynthEngine {
 		velocity = 1
 	): Voice {
 		this.reserveUnits(params.wave === 'supersaw' ? 7 : 1, ctx.currentTime);
-		const voice = new Voice(ctx, this.master!, freq, params, when, velocity, this.modRoutes());
+		// organ plays through the Leslie; everything else goes straight to master
+		const dest = params.wave === 'organ' && this.rotaryIn ? this.rotaryIn : this.master!;
+		const voice = new Voice(ctx, dest, freq, params, when, velocity, this.modRoutes());
 		if (this.bendCents !== 0) voice.bend(this.bendCents, when);
 		this.live.push(voice);
 		this.liveUnits += voice.unitCount;
@@ -237,6 +241,66 @@ export class SynthEngine {
 		const key = `${PAD_VOICE}:${id}`;
 		this.voices.get(key)?.stop(this.ctx.currentTime);
 		this.voices.delete(key);
+	}
+
+	/**
+	 * Leslie rotary (SOS "Synthesizing the Hammond, part 2"): the cabinet
+	 * splits at ~800 Hz into a fast horn and a slower bass drum. Each rotor =
+	 * doppler (delay modulated for ±1% pitch), tremolo (AM) and, for the horn,
+	 * stereo rotation. Fixed at tremolo speed — the blues shout setting.
+	 */
+	private buildRotary(ctx: AudioContext, master: DynamicsCompressorNode): void {
+		const input = ctx.createGain();
+		const split = 800;
+		const HORN_HZ = 6.7;
+		const DRUM_HZ = 5.7;
+
+		const lfo = (hz: number): OscillatorNode => {
+			const osc = ctx.createOscillator();
+			osc.frequency.value = hz;
+			osc.start();
+			return osc;
+		};
+		const scaled = (osc: OscillatorNode, amount: number): GainNode => {
+			const g = ctx.createGain();
+			g.gain.value = amount;
+			osc.connect(g);
+			return g;
+		};
+		const hornLfo = lfo(HORN_HZ);
+		const drumLfo = lfo(DRUM_HZ);
+
+		// horn: highpass → doppler delay → tremolo → rotating pan
+		const high = ctx.createBiquadFilter();
+		high.type = 'highpass';
+		high.frequency.value = split;
+		const doppler = ctx.createDelay(0.02);
+		// ±1% pitch at f Hz needs delay swing 0.01 / (2π f)
+		doppler.delayTime.value = 0.002;
+		scaled(hornLfo, 0.01 / (2 * Math.PI * HORN_HZ)).connect(doppler.delayTime);
+		const hornAm = ctx.createGain();
+		hornAm.gain.value = 0.7;
+		scaled(hornLfo, 0.3).connect(hornAm.gain);
+		const hornPan = ctx.createStereoPanner();
+		scaled(hornLfo, 0.6).connect(hornPan.pan);
+		input.connect(high);
+		high.connect(doppler);
+		doppler.connect(hornAm);
+		hornAm.connect(hornPan);
+		hornPan.connect(master);
+
+		// bass drum: lowpass → gentler tremolo, no doppler (mass, no horn throw)
+		const low = ctx.createBiquadFilter();
+		low.type = 'lowpass';
+		low.frequency.value = split;
+		const drumAm = ctx.createGain();
+		drumAm.gain.value = 0.85;
+		scaled(drumLfo, 0.15).connect(drumAm.gain);
+		input.connect(low);
+		low.connect(drumAm);
+		drumAm.connect(master);
+
+		this.rotaryIn = input;
 	}
 
 	/**
@@ -500,6 +564,7 @@ export class SynthEngine {
 		this.wetConnected = false;
 		this.live = [];
 		this.liveUnits = 0;
+		this.rotaryIn = null;
 		if (this.dropTimer) clearTimeout(this.dropTimer);
 		this.dropTimer = null;
 	}

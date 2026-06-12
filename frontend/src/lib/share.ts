@@ -6,7 +6,7 @@ import type { Waveform } from './engine/voice.ts';
 import { params } from './params.svelte.ts';
 import { ROWS, seq, STEPS } from './sequencer.svelte.ts';
 
-const WAVES: Waveform[] = ['sine', 'square', 'sawtooth', 'triangle', 'supersaw'];
+const WAVES: Waveform[] = ['sine', 'square', 'sawtooth', 'triangle', 'supersaw', 'organ'];
 const LFO_TARGETS: LfoTarget[] = ['off', 'pitch', 'filter'];
 
 const clamp = (v: number, min: number, max: number): number => Math.min(max, Math.max(min, v));

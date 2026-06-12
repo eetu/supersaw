@@ -7,7 +7,7 @@
 		value: Waveform;
 	} = $props();
 
-	const waves: Waveform[] = ['sine', 'square', 'sawtooth', 'triangle', 'supersaw'];
+	const waves: Waveform[] = ['sine', 'square', 'sawtooth', 'triangle', 'supersaw', 'organ'];
 </script>
 
 <div class="waves" role="radiogroup" aria-label="waveform">
@@ -54,7 +54,6 @@
 	@media (max-width: 640px) and (orientation: portrait) {
 		.waves {
 			gap: 0.2rem;
-			flex-wrap: nowrap;
 		}
 		button {
 			font-size: 0.7rem;
