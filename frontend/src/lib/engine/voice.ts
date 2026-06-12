@@ -258,9 +258,11 @@ export class Voice {
 		this.releasing = true;
 		for (const unit of this.units) {
 			unit.envelope.gain.cancelScheduledValues(now);
-			// setTargetAtTime starts from the current value — no anchor needed
-			unit.envelope.gain.setTargetAtTime(0, now, 0.015);
-			unit.osc.stop(now + 0.08);
+			// setTargetAtTime starts from the current value — no anchor needed.
+			// 50ms tau: short enough to free the budget, long enough that
+			// chopping an audible release tail doesn't read as a snap.
+			unit.envelope.gain.setTargetAtTime(0, now, 0.05);
+			unit.osc.stop(now + 0.25);
 		}
 	}
 

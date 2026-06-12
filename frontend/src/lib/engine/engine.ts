@@ -188,6 +188,12 @@ export class SynthEngine {
 	private reserveUnits(needed: number, now: number): void {
 		while (this.liveUnits + needed > MAX_UNITS && this.live.length > 0) {
 			const victim = this.live.find((v) => v.releasing) ?? this.live[0];
+			if (import.meta.env.DEV) {
+				console.debug(
+					`[engine] steal: ${this.liveUnits}+${needed} units > ${MAX_UNITS}, ` +
+						`live=${this.live.length}, victim releasing=${victim.releasing}`
+				);
+			}
 			victim.kill(now);
 			this.unregister(victim);
 		}
