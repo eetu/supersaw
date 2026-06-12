@@ -1,12 +1,16 @@
 <script lang="ts">
 	import '$lib/styles/halo.css';
 
+	import Dices from '@lucide/svelte/icons/dices';
+
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
+	import ShadesIcon from '$lib/components/ShadesIcon.svelte';
 	import Wordmark from '$lib/components/Wordmark.svelte';
 	import { engine } from '$lib/engine/engine';
 	import { params } from '$lib/params.svelte';
 	import { applyShareHash } from '$lib/share';
+	import { randomize, t2, ui } from '$lib/ui.svelte';
 
 	let { children } = $props();
 
@@ -37,6 +41,22 @@
 <div class="shell" class:wide={page.url.pathname === '/seq'} class:lofi={params.lofi}>
 	<header class="top">
 		<Wordmark />
+		<div class="top-actions">
+			{#if params.lofi && page.url.pathname === '/'}
+				<button
+					type="button"
+					class="t2"
+					onclick={t2}
+					disabled={ui.t2Playing}
+					title="hasta la vista"
+				>
+					<ShadesIcon size={18} />
+				</button>
+			{/if}
+			<button type="button" class="dice" onclick={randomize} title="randomize controls">
+				<Dices size={20} aria-hidden="true" />
+			</button>
+		</div>
 	</header>
 
 	<nav class="tabs">
@@ -92,9 +112,52 @@
 	}
 	.top {
 		display: flex;
-		align-items: baseline;
+		align-items: center;
 		gap: 1rem;
 		flex-wrap: wrap;
+	}
+	.top-actions {
+		margin-left: auto;
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+	}
+	/* easter egg — T-800 eye red, synth view + lo-fi mode only */
+	.t2 {
+		display: inline-flex;
+		padding: 0.25rem 0.4rem;
+		border: none;
+		border-radius: var(--halo-radius-pill);
+		background: var(--halo-bg-light);
+		color: var(--halo-error);
+		cursor: pointer;
+		transition: box-shadow var(--halo-d-fast);
+	}
+	.t2:hover {
+		box-shadow: 0 0 8px 1px rgba(255, 60, 60, 0.45);
+	}
+	.t2:disabled {
+		opacity: 0.4;
+		cursor: default;
+		box-shadow: none;
+	}
+	.dice {
+		display: inline-flex;
+		padding: 0.25rem;
+		border: none;
+		border-radius: var(--halo-radius-pill);
+		background: none;
+		color: var(--halo-text-muted);
+		cursor: pointer;
+		transition:
+			color var(--halo-d-fast),
+			transform var(--halo-d-fast);
+	}
+	.dice:hover {
+		color: var(--halo-accent);
+	}
+	.dice:active {
+		transform: rotate(72deg);
 	}
 	.tabs {
 		display: flex;

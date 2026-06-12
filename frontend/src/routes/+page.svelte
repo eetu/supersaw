@@ -1,7 +1,6 @@
 <script lang="ts">
 	import ChevronLeft from '@lucide/svelte/icons/chevron-left';
 	import ChevronRight from '@lucide/svelte/icons/chevron-right';
-	import Dices from '@lucide/svelte/icons/dices';
 
 	import Analyser from '$lib/components/Analyser.svelte';
 	import FlipSwitch from '$lib/components/FlipSwitch.svelte';
@@ -9,89 +8,18 @@
 	import Panel from '$lib/components/Panel.svelte';
 	import PitchWheel from '$lib/components/PitchWheel.svelte';
 	import RangeSlider from '$lib/components/RangeSlider.svelte';
-	import ShadesIcon from '$lib/components/ShadesIcon.svelte';
 	import TiltBend from '$lib/components/TiltBend.svelte';
 	import VuMeter from '$lib/components/VuMeter.svelte';
 	import WaveSelect from '$lib/components/WaveSelect.svelte';
 	import { engine, type LfoTarget } from '$lib/engine/engine';
-	import { clampOctave, type Note } from '$lib/engine/notes';
+	import { clampOctave } from '$lib/engine/notes';
 	import { params } from '$lib/params.svelte';
-
-	let octave = $state(5);
+	import { ui } from '$lib/ui.svelte';
 
 	// one controls card, tabbed — keeps the keyboard on screen
 	let tab: 'osc' | 'filter' = $state('osc');
 
 	const lfoTargets: LfoTarget[] = ['off', 'pitch', 'filter'];
-	const waves = ['sine', 'square', 'sawtooth', 'triangle', 'supersaw'] as const;
-
-	// Randomize the sound, constrained to stay audible and non-hostile:
-	// cutoff never fully closed, resonance off the self-oscillation zone,
-	// envelope times biased short (squared roll).
-	function randomize(): void {
-		const r = Math.random;
-		params.wave = waves[Math.floor(r() * waves.length)];
-		params.detune = r();
-		params.mix = r();
-		params.spread = r();
-		params.attack = r() ** 2 * 0.5;
-		params.decay = 0.02 + r() ** 2 * 0.5;
-		params.sustain = 0.3 + r() * 0.7;
-		params.release = r() ** 2;
-		params.distortion = Math.round(r() ** 2 * 60);
-		params.cutoff = 0.25 + r() * 0.75;
-		params.resonance = r() * 0.7;
-		params.filterEnv = r();
-		params.lfoRate = r();
-		params.lfoDepth = r() * 0.8;
-		params.lfoTarget = lfoTargets[Math.floor(r() * lfoTargets.length)];
-	}
-
-	// Easter egg: the T2 lead (Fiedel's Synclavier brass) — tight supersaw,
-	// slow swell, dark filter that opens on attack, mono with a touch of glide.
-	// Only reachable from lo-fi mode; leaves the lo-fi switch itself alone.
-	// one intro at a time — spamming the button stacked overlapping phrases
-	let t2Playing = $state(false);
-
-	function t2(): void {
-		if (t2Playing) return;
-		t2Playing = true;
-		setTimeout(() => (t2Playing = false), 6000);
-		Object.assign(params, {
-			wave: 'supersaw',
-			detune: 0.2,
-			mix: 0.9,
-			spread: 0.3,
-			attack: 0.18,
-			decay: 0.3,
-			sustain: 0.85,
-			release: 0.4,
-			distortion: 15,
-			cutoff: 0.45,
-			resonance: 0.2,
-			filterEnv: 0.35,
-			lfoRate: 0.2,
-			lfoDepth: 0,
-			lfoTarget: 'off',
-			poly: false,
-			glide: 0.05
-		});
-		// the theme sits low — D-F-E-D around octave 4
-		octave = 4;
-		// ...and introduces itself, call and answer:
-		// D E F E C → low F, then D E F E C → A
-		const now = engine.ensure().currentTime + 0.2;
-		const p = { ...params };
-		const phrase = (at: number, last: Note, lastLen: number): void => {
-			engine.play('D5', p, at, 0.55);
-			engine.play('E5', p, at + 0.7, 0.55);
-			engine.play('F5', p, at + 1.4, 1.05);
-			engine.play('E5', p, at + 2.6, 0.55);
-			engine.play('C5', p, at + 3.3, 0.55);
-			engine.play(last, p, at + 4.0, lastLen);
-		};
-		phrase(now, 'F4', 1.5);
-	}
 
 	// the LFO is engine-global hardware — push param changes to it live
 	$effect(() => engine.setLfo(params.lfoRate, params.lfoDepth, params.lfoTarget));
@@ -111,14 +39,6 @@
 			</button>
 		</nav>
 		<div class="header-actions">
-			{#if params.lofi}
-				<button type="button" class="t2" onclick={t2} disabled={t2Playing} title="hasta la vista">
-					<ShadesIcon size={18} />
-				</button>
-			{/if}
-			<button type="button" class="dice" onclick={randomize} title="randomize controls">
-				<Dices size={20} aria-hidden="true" />
-			</button>
 			<FlipSwitch label="lo-fi" bind:checked={params.lofi} />
 			<FlipSwitch label="poly" bind:checked={params.poly} />
 		</div>
@@ -179,15 +99,15 @@
 			<button
 				type="button"
 				aria-label="octave down"
-				onclick={() => (octave = clampOctave(octave - 1))}
+				onclick={() => (ui.octave = clampOctave(ui.octave - 1))}
 			>
 				<ChevronLeft size={18} aria-hidden="true" />
 			</button>
-			<span>octave {octave}</span>
+			<span>octave {ui.octave}</span>
 			<button
 				type="button"
 				aria-label="octave up"
-				onclick={() => (octave = clampOctave(octave + 1))}
+				onclick={() => (ui.octave = clampOctave(ui.octave + 1))}
 			>
 				<ChevronRight size={18} aria-hidden="true" />
 			</button>
@@ -195,7 +115,7 @@
 	{/snippet}
 	<div class="kb-row">
 		<PitchWheel />
-		<div class="kb"><Keyboard bind:octave /></div>
+		<div class="kb"><Keyboard bind:octave={ui.octave} /></div>
 	</div>
 </Panel>
 
@@ -216,43 +136,6 @@
 		display: flex;
 		align-items: center;
 		gap: 0.75rem;
-	}
-	/* easter egg — T-800 eye red, only alive in lo-fi mode */
-	.t2 {
-		display: inline-flex;
-		padding: 0.25rem 0.4rem;
-		border: none;
-		border-radius: var(--halo-radius-pill);
-		background: var(--halo-bg-light);
-		color: var(--halo-error);
-		cursor: pointer;
-		transition: box-shadow var(--halo-d-fast);
-	}
-	.t2:hover {
-		box-shadow: 0 0 8px 1px rgba(255, 60, 60, 0.45);
-	}
-	.t2:disabled {
-		opacity: 0.4;
-		cursor: default;
-		box-shadow: none;
-	}
-	.dice {
-		display: inline-flex;
-		padding: 0.25rem;
-		border: none;
-		border-radius: var(--halo-radius-pill);
-		background: none;
-		color: var(--halo-text-muted);
-		cursor: pointer;
-		transition:
-			color var(--halo-d-fast),
-			transform var(--halo-d-fast);
-	}
-	.dice:hover {
-		color: var(--halo-accent);
-	}
-	.dice:active {
-		transform: rotate(72deg);
 	}
 	/* in-card tabs echo the top nav: underline, accent when active */
 	.ctl-tabs {
