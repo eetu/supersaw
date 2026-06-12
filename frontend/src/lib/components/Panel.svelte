@@ -57,4 +57,9 @@
 		font-size: 1.05rem;
 		font-weight: 600;
 	}
+	.actions {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+	}
 </style>
