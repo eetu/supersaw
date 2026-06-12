@@ -131,9 +131,15 @@ export class Voice {
 		osc.type = params.wave === 'supersaw' ? 'sawtooth' : params.wave;
 		osc.frequency.value = this.freq * ratio;
 
-		const shaper = ctx.createWaveShaper();
-		shaper.curve = makeDistortionCurve(params.distortion);
-		shaper.oversample = '4x';
+		// The 4x-oversampled waveshaper is the most expensive node in the voice
+		// and at amount 0 its curve is exactly x/3 — skip it entirely there and
+		// fold the 1/3 into the level gain instead (identical loudness, a CPU
+		// saving that matters on phones: pops under fast playing came from this).
+		const shaper = params.distortion > 0 ? ctx.createWaveShaper() : null;
+		if (shaper) {
+			shaper.curve = makeDistortionCurve(params.distortion);
+			shaper.oversample = '4x';
+		}
 
 		const envelope = ctx.createGain();
 		envelope.gain.setValueAtTime(0, when);
@@ -141,13 +147,17 @@ export class Voice {
 		envelope.gain.linearRampToValueAtTime(params.sustain, when + params.attack + params.decay);
 
 		const levelGain = ctx.createGain();
-		levelGain.gain.setValueAtTime(level * this.velocity, when);
+		levelGain.gain.setValueAtTime(level * this.velocity * (shaper ? 1 : 1 / 3), when);
 
 		const panner = ctx.createStereoPanner();
 		panner.pan.value = pan;
 
-		osc.connect(shaper);
-		shaper.connect(envelope);
+		if (shaper) {
+			osc.connect(shaper);
+			shaper.connect(envelope);
+		} else {
+			osc.connect(envelope);
+		}
 		envelope.connect(levelGain);
 		levelGain.connect(panner);
 		panner.connect(target);
@@ -158,7 +168,7 @@ export class Voice {
 				if (mod.target === 'pitch') mod.node.disconnect(osc.detune);
 			}
 			osc.disconnect();
-			shaper.disconnect();
+			shaper?.disconnect();
 			envelope.disconnect();
 			levelGain.disconnect();
 			panner.disconnect();

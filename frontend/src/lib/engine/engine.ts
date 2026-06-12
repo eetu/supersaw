@@ -43,7 +43,9 @@ export class SynthEngine {
 		wet: GainNode;
 		hiss: GainNode;
 		drop: GainNode;
+		wetIn: WaveShaperNode;
 	} | null = null;
+	private wetConnected = false;
 	private dropTimer: ReturnType<typeof setTimeout> | null = null;
 	private lofiOn = false;
 	private bornAt = 0;
@@ -274,7 +276,8 @@ export class SynthEngine {
 
 		const wet = ctx.createGain();
 		wet.gain.value = 0;
-		master.connect(crusher);
+		// master→crusher is gated by applyLofi: a disconnected wet chain costs
+		// zero CPU (the convolver alone is too heavy to run idle on phones)
 		crusher.connect(highcut);
 		highcut.connect(lowcut);
 		lowcut.connect(chorusSum);
@@ -305,7 +308,7 @@ export class SynthEngine {
 		hiss.connect(this.out!);
 		noise.start();
 
-		this.lofiNodes = { wobble, dry, wet, hiss, drop };
+		this.lofiNodes = { wobble, dry, wet, hiss, drop, wetIn: crusher };
 		this.applyLofi();
 	}
 
@@ -317,7 +320,20 @@ export class SynthEngine {
 	private applyLofi(): void {
 		if (!this.ctx || !this.lofiNodes) return;
 		const now = this.ctx.currentTime;
-		const { wobble, dry, wet, hiss, drop } = this.lofiNodes;
+		const { wobble, dry, wet, hiss, drop, wetIn } = this.lofiNodes;
+		// gate the wet chain's input: disconnected nodes cost zero CPU
+		if (this.lofiOn && !this.wetConnected) {
+			this.master?.connect(wetIn);
+			this.wetConnected = true;
+		} else if (!this.lofiOn && this.wetConnected) {
+			// let the crossfade finish before cutting the chain
+			setTimeout(() => {
+				if (!this.lofiOn && this.wetConnected && this.master && this.lofiNodes) {
+					this.master.disconnect(this.lofiNodes.wetIn);
+					this.wetConnected = false;
+				}
+			}, 400);
+		}
 		wobble.gain.setTargetAtTime(this.lofiOn ? 1 : 0, now, 0.1);
 		dry.gain.setTargetAtTime(this.lofiOn ? 0 : 1, now, 0.05);
 		wet.gain.setTargetAtTime(this.lofiOn ? 1 : 0, now, 0.05);
@@ -445,6 +461,7 @@ export class SynthEngine {
 		this.lfoOsc = null;
 		this.lfoGain = null;
 		this.lofiNodes = null;
+		this.wetConnected = false;
 		if (this.dropTimer) clearTimeout(this.dropTimer);
 		this.dropTimer = null;
 	}
