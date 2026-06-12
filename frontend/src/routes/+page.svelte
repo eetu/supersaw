@@ -8,13 +8,14 @@
 	import Panel from '$lib/components/Panel.svelte';
 	import PitchWheel from '$lib/components/PitchWheel.svelte';
 	import RangeSlider from '$lib/components/RangeSlider.svelte';
+	import ShadesIcon from '$lib/components/ShadesIcon.svelte';
 	import TiltBend from '$lib/components/TiltBend.svelte';
 	import VuMeter from '$lib/components/VuMeter.svelte';
 	import WaveSelect from '$lib/components/WaveSelect.svelte';
 	import { engine, type LfoTarget } from '$lib/engine/engine';
 	import { clampOctave } from '$lib/engine/notes';
 	import { params } from '$lib/params.svelte';
-	import { ui } from '$lib/ui.svelte';
+	import { t2, ui } from '$lib/ui.svelte';
 
 	// one controls card, tabbed — keeps the keyboard on screen
 	let tab: 'osc' | 'filter' = $state('osc');
@@ -39,6 +40,17 @@
 			</button>
 		</nav>
 		<div class="header-actions">
+			{#if params.lofi}
+				<button
+					type="button"
+					class="t2"
+					onclick={t2}
+					disabled={ui.t2Playing}
+					title="hasta la vista"
+				>
+					<ShadesIcon size={18} />
+				</button>
+			{/if}
 			<FlipSwitch label="lo-fi" bind:checked={params.lofi} />
 			<FlipSwitch label="poly" bind:checked={params.poly} />
 		</div>
@@ -136,6 +148,25 @@
 		display: flex;
 		align-items: center;
 		gap: 0.75rem;
+	}
+	/* easter egg — T-800 eye red, appears with lo-fi */
+	.t2 {
+		display: inline-flex;
+		padding: 0.25rem 0.4rem;
+		border: none;
+		border-radius: var(--halo-radius-pill);
+		background: var(--halo-bg-light);
+		color: var(--halo-error);
+		cursor: pointer;
+		transition: box-shadow var(--halo-d-fast);
+	}
+	.t2:hover {
+		box-shadow: 0 0 8px 1px rgba(255, 60, 60, 0.45);
+	}
+	.t2:disabled {
+		opacity: 0.4;
+		cursor: default;
+		box-shadow: none;
 	}
 	/* in-card tabs echo the top nav: underline, accent when active */
 	.ctl-tabs {
