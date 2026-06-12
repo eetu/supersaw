@@ -1,6 +1,9 @@
 <script lang="ts">
+	import ChevronDown from '@lucide/svelte/icons/chevron-down';
+	import ChevronUp from '@lucide/svelte/icons/chevron-up';
+
 	import Panel from '$lib/components/Panel.svelte';
-	import { clearGrid, ROWS, seq, togglePlay } from '$lib/sequencer.svelte';
+	import { clearGrid, ROWS, seq, STEPS, togglePlay } from '$lib/sequencer.svelte';
 	import { shareUrl } from '$lib/share';
 
 	let copied = $state(false);
@@ -34,9 +37,94 @@
 	const padKey = (r: number, s: number) => (e: MouseEvent) => {
 		if (e.detail === 0) seq.grid[r][s] = cycle(seq.grid[r][s]);
 	};
+
+	// --- pitch window: width decides the cell size (1fr columns can't
+	// overflow), measured height decides how many FULL rows fit — the plate
+	// never grows the page. seq.viewRows is the target (8 compact / 16
+	// expanded); fewer render when the viewport is short. ---
+	let trackEl: HTMLDivElement | undefined = $state();
+	let plateEl: HTMLDivElement | undefined = $state();
+	let gridW = $state(0);
+	let winH = $state(0);
+	let plateTop = $state(0);
+
+	function measure(): void {
+		winH = window.innerHeight;
+		plateTop = plateEl?.getBoundingClientRect().top ?? 0;
+	}
+	// measure after layout, when the grid width settles, and on every resize
+	$effect(() => {
+		void gridW;
+		measure();
+		window.addEventListener('resize', measure);
+		return () => window.removeEventListener('resize', measure);
+	});
+
+	const rem = (): number =>
+		typeof document === 'undefined'
+			? 16
+			: parseFloat(getComputedStyle(document.documentElement).fontSize);
+	const portrait = (): boolean =>
+		typeof window !== 'undefined' &&
+		window.matchMedia('(max-width: 640px) and (orientation: portrait)').matches;
+
+	const cellPx = $derived.by(() => {
+		const r = rem();
+		const label = (portrait() ? 1.6 : 2.4) * r;
+		const gap = (portrait() ? 0.2 : 0.4) * r;
+		return Math.max(8, (gridW - label - gap * STEPS) / STEPS);
+	});
+	const visibleRows = $derived.by(() => {
+		const gap = (portrait() ? 0.2 : 0.4) * rem();
+		const budget = winH - plateTop - 2.5 * rem();
+		const fit = Math.floor(budget / (cellPx + gap));
+		if (import.meta.env.DEV) {
+			console.debug(
+				`[seq-fit] winH=${winH} plateTop=${Math.round(plateTop)} gridW=${gridW} ` +
+					`cellPx=${Math.round(cellPx)} budget=${Math.round(budget)} fit=${fit}`
+			);
+		}
+		return Math.max(2, Math.min(fit, ROWS.length));
+	});
+	const maxTop = $derived(ROWS.length - visibleRows);
+	const thumbPct = $derived((visibleRows / ROWS.length) * 100);
+	const thumbTopPct = $derived((Math.min(seq.viewTop, maxTop) / ROWS.length) * 100);
+
+	function scroll(delta: number): void {
+		seq.viewTop = Math.max(0, Math.min(maxTop, Math.min(seq.viewTop, maxTop) + delta));
+	}
+
+	function railSeek(e: PointerEvent): void {
+		if (!trackEl) return;
+		const rect = trackEl.getBoundingClientRect();
+		const f = (e.clientY - rect.top) / rect.height;
+		seq.viewTop = Math.max(0, Math.min(maxTop, Math.round(f * ROWS.length - visibleRows / 2)));
+	}
+	function railDown(e: PointerEvent): void {
+		(e.currentTarget as Element).setPointerCapture(e.pointerId);
+		railSeek(e);
+	}
+	function railMove(e: PointerEvent): void {
+		if (e.buttons) railSeek(e);
+	}
+	function onGridWheel(e: WheelEvent): void {
+		e.preventDefault();
+		scroll(Math.sign(e.deltaY));
+	}
+	// arrow keys scroll the pitch window (unless a control owns the focus)
+	function onkeydown(e: KeyboardEvent): void {
+		if ((e.target as HTMLElement | null)?.matches('input, select, textarea')) return;
+		if (e.code === 'ArrowUp') {
+			e.preventDefault();
+			scroll(-1);
+		} else if (e.code === 'ArrowDown') {
+			e.preventDefault();
+			scroll(1);
+		}
+	}
 </script>
 
-<svelte:window onpointerup={() => (brush = null)} onblur={() => (brush = null)} />
+<svelte:window onpointerup={() => (brush = null)} onblur={() => (brush = null)} {onkeydown} />
 
 <Panel title="sequencer">
 	{#snippet actions()}
@@ -53,25 +141,6 @@
 				<span>chance</span>
 				<input type="range" min="0.1" max="1" step="0.01" bind:value={seq.chance} />
 			</label>
-			<div class="mini oct">
-				<button
-					type="button"
-					aria-label="octave down"
-					disabled={seq.octaveShift <= -2}
-					onclick={() => (seq.octaveShift -= 1)}
-				>
-					‹
-				</button>
-				<span>oct {seq.octaveShift >= 0 ? '+' : ''}{seq.octaveShift}</span>
-				<button
-					type="button"
-					aria-label="octave up"
-					disabled={seq.octaveShift >= 2}
-					onclick={() => (seq.octaveShift += 1)}
-				>
-					›
-				</button>
-			</div>
 			<button
 				type="button"
 				class="ghost life"
@@ -93,11 +162,18 @@
 		</div>
 	{/snippet}
 
-	<div class="plate">
-		<div class="grid" style:--steps={seq.grid[0].length}>
-			{#each seq.grid as row, r (r)}
+	<div class="plate" bind:this={plateEl} onwheel={onGridWheel}>
+		<div
+			class="grid"
+			id="seq-grid"
+			bind:clientWidth={gridW}
+			style:--steps={STEPS}
+			style:--cellpx="{cellPx}px"
+		>
+			{#each { length: visibleRows } as _, i (i)}
+				{@const r = Math.min(seq.viewTop, maxTop) + i}
 				<span class="row-label">{ROWS[r]}</span>
-				{#each row as level, s (s)}
+				{#each seq.grid[r] as level, s (s)}
 					<button
 						type="button"
 						class="cell v{level}"
@@ -112,6 +188,29 @@
 					></button>
 				{/each}
 			{/each}
+		</div>
+		<div class="rail">
+			<button type="button" aria-label="scroll up" onclick={() => scroll(-1)}>
+				<ChevronUp size={14} aria-hidden="true" />
+			</button>
+			<div
+				class="track"
+				bind:this={trackEl}
+				role="scrollbar"
+				aria-controls="seq-grid"
+				aria-orientation="vertical"
+				aria-valuenow={seq.viewTop}
+				aria-valuemin={0}
+				aria-valuemax={maxTop}
+				tabindex={-1}
+				onpointerdown={railDown}
+				onpointermove={railMove}
+			>
+				<div class="thumb" style:height="{thumbPct}%" style:top="{thumbTopPct}%"></div>
+			</div>
+			<button type="button" aria-label="scroll down" onclick={() => scroll(1)}>
+				<ChevronDown size={14} aria-hidden="true" />
+			</button>
 		</div>
 	</div>
 </Panel>
@@ -172,25 +271,6 @@
 		outline-offset: 2px;
 		border-radius: var(--halo-radius-pill);
 	}
-	.oct {
-		gap: 0.25rem;
-	}
-	.oct button {
-		min-width: 1.6rem;
-		padding: 0.2rem 0;
-		border: none;
-		border-radius: var(--halo-radius-pill);
-		background: var(--halo-bg-light);
-		color: var(--halo-text-muted);
-		cursor: pointer;
-	}
-	.oct button:hover:not(:disabled) {
-		color: var(--halo-accent);
-	}
-	.oct button:disabled {
-		opacity: 0.35;
-		cursor: default;
-	}
 	button {
 		font-family: var(--halo-font-heading);
 		font-size: 0.85rem;
@@ -236,14 +316,16 @@
 		color: var(--halo-bg-main);
 	}
 	.grid {
+		flex: 1;
+		min-width: 0;
 		display: grid;
+		/* columns are 1fr — width can never overflow; the script measures the
+		   resulting cell width and renders only as many full rows as fit the
+		   viewport, each exactly one cell tall (squares by construction) */
 		grid-template-columns: 2.4rem repeat(var(--steps), 1fr);
+		grid-auto-rows: var(--cellpx);
 		gap: 0.4rem;
-		/* center, NOT stretch: stretched cells take the row's height (set by the
-		   label text) and aspect-ratio then collapses their width to match.
-		   Centered, the pad's height comes from its column width instead and
-		   the row grows to fit — pads scale with the screen. */
-		align-items: center;
+		align-items: stretch;
 	}
 	.row-label {
 		font-family: var(--halo-font-heading);
@@ -256,6 +338,8 @@
 	   The plate is hardware-dark in both themes; oranges are --halo-accent
 	   (#f78f08) at varying alphas. */
 	.plate {
+		display: flex;
+		gap: 0.5rem;
 		background: #161616;
 		border-radius: var(--halo-radius);
 		padding: 0.6rem;
@@ -263,10 +347,47 @@
 			inset 0 2px 8px rgba(0, 0, 0, 0.6),
 			0 1px 2px rgba(0, 0, 0, 0.25);
 	}
+	.rail {
+		display: flex;
+		flex-direction: column;
+		align-items: stretch;
+		gap: 0.3rem;
+		width: 1.1rem;
+	}
+	.rail button {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		padding: 0.1rem 0;
+		border: none;
+		border-radius: 3px;
+		background: #2b2b2b;
+		color: var(--halo-text-muted);
+		cursor: pointer;
+	}
+	.rail button:hover {
+		color: var(--halo-accent);
+	}
+	.track {
+		position: relative;
+		flex: 1;
+		border-radius: 3px;
+		background: #2b2b2b;
+		cursor: pointer;
+		touch-action: none;
+	}
+	.thumb {
+		position: absolute;
+		left: 2px;
+		right: 2px;
+		border-radius: 3px;
+		background: var(--halo-text-muted);
+		pointer-events: none;
+	}
 	.cell {
 		position: relative;
 		width: 100%;
-		aspect-ratio: 1;
+		height: 100%;
 		padding: 0;
 		border: none;
 		border-radius: 3px;
@@ -333,7 +454,8 @@
 	   controls flow as compact full-width rows under the title. */
 	@media (max-width: 640px) and (orientation: portrait) {
 		.grid {
-			grid-template-columns: 1.6rem repeat(var(--steps), 1fr);
+			--cell: min(calc((100vw - 6rem) / var(--steps)), calc((100dvh - 16rem) / var(--rows)));
+			grid-template-columns: 1.6rem repeat(var(--steps), var(--cell));
 			gap: 0.2rem;
 		}
 		.row-label {

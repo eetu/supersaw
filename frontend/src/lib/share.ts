@@ -24,7 +24,6 @@ export function shareUrl(): string {
 	const q = new URLSearchParams({
 		g: grid,
 		t: String(seq.tempo),
-		oc: String(seq.octaveShift),
 		sw: String(seq.swing),
 		ch: String(seq.chance),
 		w: String(WAVES.indexOf(params.wave)),
@@ -77,7 +76,6 @@ export function applyShareHash(): void {
 		if (Number.isFinite(v)) set(clamp(v, min, max));
 	};
 	num('t', 40, 240, (v) => (seq.tempo = Math.round(v)));
-	num('oc', -2, 2, (v) => (seq.octaveShift = Math.round(v)));
 	num('sw', 0, 1, (v) => (seq.swing = v));
 	num('ch', 0, 1, (v) => (seq.chance = v));
 	num('w', 0, WAVES.length - 1, (v) => (params.wave = WAVES[Math.round(v)]));

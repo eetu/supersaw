@@ -74,6 +74,11 @@ export class SynthEngine {
 		return this.ctx?.currentTime ?? 0;
 	}
 
+	/** unit budget headroom right now (callers can pre-trim instead of churning steals) */
+	get freeUnits(): number {
+		return MAX_UNITS - this.liveUnits;
+	}
+
 	ensure(): AudioContext {
 		if (!this.ctx) {
 			// One tab owns the speakers: Safari only routes output for a single

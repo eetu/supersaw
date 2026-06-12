@@ -3,24 +3,28 @@ import type { Note } from './engine/notes.ts';
 import { Scheduler } from './engine/scheduler.ts';
 import { params } from './params.svelte.ts';
 
-// C minor pentatonic, two octaves, high notes on top — every cell sounds fine
-// next to every other, which is the point of a toy step sequencer.
-export const ROWS: Note[] = ['C6', 'A#5', 'G5', 'F5', 'D#5', 'C5', 'A#4', 'G4'];
+// C minor pentatonic over the keyboard's full octave range (C0..C8), high
+// notes on top — every cell sounds fine next to every other, which is the
+// point of a toy step sequencer. The page shows a VISIBLE_ROWS-tall window
+// into this space; patterns live at absolute pitch and stay where clicked.
+const PENTA_DESC = ['A#', 'G', 'F', 'D#', 'C'] as const;
+export const ROWS: Note[] = [
+	'C8',
+	...Array.from({ length: 8 }, (_, i) => 7 - i).flatMap((oct) =>
+		PENTA_DESC.map((name) => `${name}${oct}`)
+	)
+];
 export const STEPS = 16;
+/** default window top = C6, the old fixed grid's top row */
+export const DEFAULT_TOP = ROWS.indexOf('C6');
 
 // Pads hold a velocity level 0..3 (0 = off); taps cycle down from full.
 export const VELOCITIES = [0, 0.33, 0.66, 1] as const;
 
-/** transpose a note name by whole octaves: shiftNote('A#5', -1) → 'A#4' */
-function shiftNote(note: Note, octaves: number): Note {
-	if (octaves === 0) return note;
-	return note.slice(0, -1) + (Number(note.slice(-1)) + octaves);
-}
-
 export const seq = $state({
 	grid: ROWS.map(() => Array<number>(STEPS).fill(0)),
-	/** transposes playback ±2 octaves; the pattern itself doesn't move */
-	octaveShift: 0,
+	/** index of the topmost visible row */
+	viewTop: ROWS.indexOf('C6'),
 	tempo: 120,
 	/** 0..1 — MPC-style off-beat delay */
 	swing: 0,
@@ -67,17 +71,22 @@ function onStep(step: number, time: number): void {
 	scheduler.tempo = seq.tempo;
 	scheduler.swing = seq.swing;
 	const stepLength = (60 / seq.tempo) * 0.25;
+	// Cap the step to what the voice budget can actually render: loudest pads
+	// win, the rest are silently skipped. Without this a dense supersaw step
+	// spawns voices that steal each other within the same step — churn, not
+	// notes. Light waves (1 unit) effectively never hit the cap.
+	const unitsPerVoice = params.wave === 'supersaw' ? 7 : 1;
+	const cap = Math.max(1, Math.floor(engine.freeUnits / unitsPerVoice));
+	const hits: { note: Note; level: number }[] = [];
 	for (const [row, note] of ROWS.entries()) {
 		const level = seq.grid[row][step];
 		if (level > 0 && (seq.chance >= 1 || Math.random() < seq.chance)) {
-			engine.play(
-				shiftNote(note, seq.octaveShift),
-				params,
-				time,
-				stepLength * 0.9,
-				VELOCITIES[level]
-			);
+			hits.push({ note, level });
 		}
+	}
+	hits.sort((a, b) => b.level - a.level);
+	for (const { note, level } of hits.slice(0, cap)) {
+		engine.play(note, params, time, stepLength * 0.9, VELOCITIES[level]);
 	}
 	// after the loop's last step is scheduled, evolve — synchronously, so the
 	// next loop's steps (possibly scheduled in this same tick) see the new gen
