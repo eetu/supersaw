@@ -57,6 +57,7 @@ export class Voice {
 	private stopped = false;
 	private dead = false;
 	private readonly filter: BiquadFilterNode;
+	private highpass: BiquadFilterNode | null = null;
 	private readonly mods: LfoRoute[];
 
 	/** true once release (or kill) has been scheduled — steal these first */
@@ -106,8 +107,12 @@ export class Voice {
 		if (params.wave === 'supersaw') {
 			const highpass = ctx.createBiquadFilter();
 			highpass.type = 'highpass';
-			highpass.frequency.value = 200;
+			// per Szabó 2010: the JP-8000 high-passes AT the note's fundamental,
+			// removing the sub-fundamental beating of the detuned saws (the 2015
+			// code's fixed 200 Hz ate low notes' fundamentals instead)
+			highpass.frequency.value = freq;
 			highpass.connect(this.filter);
+			this.highpass = highpass;
 			const levels = mixLevels(params.mix);
 			detuneRatios(params.detune).forEach((ratio, i) => {
 				// stagger starts ≤10ms so the saws don't begin phase-aligned
@@ -213,6 +218,12 @@ export class Voice {
 			unit.osc.frequency.cancelScheduledValues(now);
 			unit.osc.frequency.setValueAtTime(current * unit.ratio, now);
 			unit.osc.frequency.linearRampToValueAtTime(freq * unit.ratio, now + duration);
+		}
+		// the fundamental-tracking highpass glides along
+		if (this.highpass) {
+			this.highpass.frequency.cancelScheduledValues(now);
+			this.highpass.frequency.setValueAtTime(Math.max(current, 20), now);
+			this.highpass.frequency.linearRampToValueAtTime(Math.max(freq, 20), now + duration);
 		}
 	}
 
