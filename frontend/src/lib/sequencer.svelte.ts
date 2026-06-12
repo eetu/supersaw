@@ -11,8 +11,16 @@ export const STEPS = 16;
 // Pads hold a velocity level 0..3 (0 = off); taps cycle down from full.
 export const VELOCITIES = [0, 0.33, 0.66, 1] as const;
 
+/** transpose a note name by whole octaves: shiftNote('A#5', -1) → 'A#4' */
+function shiftNote(note: Note, octaves: number): Note {
+	if (octaves === 0) return note;
+	return note.slice(0, -1) + (Number(note.slice(-1)) + octaves);
+}
+
 export const seq = $state({
 	grid: ROWS.map(() => Array<number>(STEPS).fill(0)),
+	/** transposes playback ±2 octaves; the pattern itself doesn't move */
+	octaveShift: 0,
 	tempo: 120,
 	/** 0..1 — MPC-style off-beat delay */
 	swing: 0,
@@ -62,7 +70,13 @@ function onStep(step: number, time: number): void {
 	for (const [row, note] of ROWS.entries()) {
 		const level = seq.grid[row][step];
 		if (level > 0 && (seq.chance >= 1 || Math.random() < seq.chance)) {
-			engine.play(note, params, time, stepLength * 0.9, VELOCITIES[level]);
+			engine.play(
+				shiftNote(note, seq.octaveShift),
+				params,
+				time,
+				stepLength * 0.9,
+				VELOCITIES[level]
+			);
 		}
 	}
 	// after the loop's last step is scheduled, evolve — synchronously, so the

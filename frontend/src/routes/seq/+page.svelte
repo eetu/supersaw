@@ -53,6 +53,25 @@
 				<span>chance</span>
 				<input type="range" min="0.1" max="1" step="0.01" bind:value={seq.chance} />
 			</label>
+			<div class="mini oct">
+				<button
+					type="button"
+					aria-label="octave down"
+					disabled={seq.octaveShift <= -2}
+					onclick={() => (seq.octaveShift -= 1)}
+				>
+					‹
+				</button>
+				<span>oct {seq.octaveShift >= 0 ? '+' : ''}{seq.octaveShift}</span>
+				<button
+					type="button"
+					aria-label="octave up"
+					disabled={seq.octaveShift >= 2}
+					onclick={() => (seq.octaveShift += 1)}
+				>
+					›
+				</button>
+			</div>
 			<button
 				type="button"
 				class="ghost life"
@@ -152,6 +171,25 @@
 		outline: 2px solid var(--halo-accent);
 		outline-offset: 2px;
 		border-radius: var(--halo-radius-pill);
+	}
+	.oct {
+		gap: 0.25rem;
+	}
+	.oct button {
+		min-width: 1.6rem;
+		padding: 0.2rem 0;
+		border: none;
+		border-radius: var(--halo-radius-pill);
+		background: var(--halo-bg-light);
+		color: var(--halo-text-muted);
+		cursor: pointer;
+	}
+	.oct button:hover:not(:disabled) {
+		color: var(--halo-accent);
+	}
+	.oct button:disabled {
+		opacity: 0.35;
+		cursor: default;
 	}
 	button {
 		font-family: var(--halo-font-heading);
