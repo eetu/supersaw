@@ -448,8 +448,9 @@
 	   controls flow as compact full-width rows under the title. */
 	@media (max-width: 640px) and (orientation: portrait) {
 		.grid {
-			--cell: min(calc((100vw - 6rem) / var(--steps)), calc((100dvh - 16rem) / var(--rows)));
-			grid-template-columns: 1.6rem repeat(var(--steps), var(--cell));
+			/* same 1fr columns as desktop (they can't overflow), just a slimmer
+			   label + gap; the script already sizes cellPx/rows for portrait */
+			grid-template-columns: 1.6rem repeat(var(--steps), 1fr);
 			gap: 0.2rem;
 		}
 		.row-label {
