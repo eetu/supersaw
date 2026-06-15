@@ -2,28 +2,23 @@ name: Automerge
 
 on:
   pull_request:
-    branches: [main]
 
 permissions:
   contents: write
   pull-requests: write
-  checks: read
-  statuses: read
-  actions: read
 
 jobs:
   automerge:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
-    # Skip github-actions bumps: they edit .github/workflows/*, which GITHUB_TOKEN
-    # cannot merge (no `workflows` permission scope) — the run would fail and leave
-    # a red X on the PR. Merge those by hand (and review the CI change). Everything
-    # else (npm/docker) automerges on the plain GITHUB_TOKEN.
+    timeout-minutes: 5
+    # Native GitHub auto-merge: GitHub squash-merges the PR once required checks
+    # pass. Only dependabot. Skip github-actions bumps — a squash merge re-authors
+    # the workflow-file change as GITHUB_TOKEN, which lacks the `workflows` scope
+    # and is rejected; merge those by hand after reviewing the CI change.
     if: github.actor == 'dependabot[bot]' && !startsWith(github.head_ref, 'dependabot/github_actions')
-
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
-      - name: Automerge Dependabot PR
-        uses: eetu/action-automerge@3b0f8a84c10e656fd6775c5792265c64c8961ed9 # v1
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Enable auto-merge
+        run: gh pr merge --auto --squash "$PR_URL"
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
