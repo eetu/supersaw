@@ -62,6 +62,12 @@ export class SynthEngine {
 	private live: Voice[] = [];
 	private liveUnits = 0;
 	private rotaryIn: GainNode | null = null;
+	private rotaryOut: { hornPan: StereoPannerNode; drumAm: GainNode } | null = null;
+	// Effect-section sources + output legs, kept so a visibility-resume flush can
+	// stop and rebuild them (a suspended context leaves the convolver/delay lines
+	// holding stale samples — the "stuck reverb" that only a reload cleared).
+	private lofiSources: AudioScheduledSourceNode[] = [];
+	private rotarySources: AudioScheduledSourceNode[] = [];
 
 	/** Fired when another tab claims the audio output (we release ours). */
 	onReleased: (() => void) | null = null;
@@ -126,12 +132,18 @@ export class SynthEngine {
 			this.buildRotary(this.ctx, this.master);
 			// Safari parks the context as suspended/"interrupted" across system
 			// sleep and tab switches and doesn't always wake it on its own —
-			// kick context + media element whenever the page becomes visible.
+			// kick context + media element whenever the page becomes visible. A
+			// parked context also leaves the lo-fi convolver + Leslie/chorus delay
+			// lines holding stale samples (the "stuck reverb" that survived screen
+			// changes and only a reload fixed). The state it reports on wake is
+			// unreliable across browsers, so rather than guess whether this wake
+			// was the bad kind, always rebuild the effect section on the way back
+			// in — it's a few ms of buffer alloc, off the hot path.
 			document.addEventListener('visibilitychange', () => {
-				if (!document.hidden && this.ctx) {
-					if (this.ctx.state !== 'running') void this.ctx.resume();
-					if (this.mediaOut?.paused) void this.mediaOut.play().catch(() => {});
-				}
+				if (document.hidden || !this.ctx) return;
+				if (this.ctx.state !== 'running') void this.ctx.resume();
+				if (this.mediaOut?.paused) void this.mediaOut.play().catch(() => {});
+				this.flushEffects();
 			});
 		}
 		if (this.ctx.state !== 'running') void this.ctx.resume();
@@ -274,6 +286,7 @@ export class SynthEngine {
 		};
 		const hornLfo = lfo(HORN_HZ);
 		const drumLfo = lfo(DRUM_HZ);
+		this.rotarySources = [hornLfo, drumLfo];
 
 		// horn: highpass → doppler delay → tremolo → rotating pan
 		const high = ctx.createBiquadFilter();
@@ -306,6 +319,60 @@ export class SynthEngine {
 		drumAm.connect(master);
 
 		this.rotaryIn = input;
+		// the two legs that feed master — disconnected on flush to cut the tail
+		this.rotaryOut = { hornPan, drumAm };
+	}
+
+	/**
+	 * Wake-from-parked recovery: a suspended/"interrupted" context leaves the
+	 * convolver and delay lines holding stale samples that ring forever once it
+	 * resumes (the distortion/reverb wash that only a reload fixed). Kill any
+	 * ringing voices and rebuild the effect section from scratch — cheaper and
+	 * far safer for iOS than tearing down the whole context (which would need a
+	 * fresh user gesture to restart audio).
+	 */
+	private flushEffects(): void {
+		if (!this.ctx || !this.master) return;
+		if (import.meta.env.DEV) console.debug('[engine] flushing effects after wake-from-parked');
+		this.stopAll();
+		this.teardownEffects();
+		this.buildLofi(this.ctx, this.master);
+		this.buildRotary(this.ctx, this.master);
+	}
+
+	/** Stop + unwire the lo-fi and Leslie subgraphs so buildLofi/buildRotary can
+	 * rebuild them. Leaves the context, master, out and global LFO intact. */
+	private teardownEffects(): void {
+		if (!this.ctx) return;
+		if (this.dropTimer) {
+			clearTimeout(this.dropTimer);
+			this.dropTimer = null;
+		}
+		for (const src of [...this.lofiSources, ...this.rotarySources]) {
+			try {
+				src.stop();
+			} catch {
+				// already stopped — fine
+			}
+			src.disconnect();
+		}
+		this.lofiSources = [];
+		this.rotarySources = [];
+		if (this.lofiNodes) {
+			const { dry, wet, hiss, wetIn } = this.lofiNodes;
+			this.master?.disconnect(dry);
+			if (this.wetConnected) this.master?.disconnect(wetIn);
+			// cut the legs feeding `out`; the orphaned middle nodes get collected
+			dry.disconnect();
+			wet.disconnect();
+			hiss.disconnect();
+		}
+		this.wetConnected = false;
+		this.lofiNodes = null;
+		this.rotaryOut?.hornPan.disconnect();
+		this.rotaryOut?.drumAm.disconnect();
+		this.rotaryOut = null;
+		this.rotaryIn = null;
 	}
 
 	/**
@@ -330,6 +397,7 @@ export class SynthEngine {
 		flutter.connect(flutterDepth).connect(wobble);
 		wow.start();
 		flutter.start();
+		this.lofiSources = [wow, flutter];
 
 		// master wet path: bitcrush (stepped waveshaper) → narrow bandwidth
 		const crusher = ctx.createWaveShaper();
@@ -356,6 +424,7 @@ export class SynthEngine {
 		chorusDepth.gain.value = 0.006;
 		chorusLfo.connect(chorusDepth).connect(chorusDelay.delayTime);
 		chorusLfo.start();
+		this.lofiSources.push(chorusLfo);
 		const chorusLevel = ctx.createGain();
 		chorusLevel.gain.value = 0.7;
 		const chorusSum = ctx.createGain();
@@ -412,6 +481,7 @@ export class SynthEngine {
 		noise.connect(hissFilter).connect(hiss);
 		hiss.connect(this.out!);
 		noise.start();
+		this.lofiSources.push(noise);
 
 		this.lofiNodes = { wobble, dry, wet, hiss, drop, wetIn: crusher };
 		this.applyLofi();
@@ -570,6 +640,9 @@ export class SynthEngine {
 		this.live = [];
 		this.liveUnits = 0;
 		this.rotaryIn = null;
+		this.rotaryOut = null;
+		this.lofiSources = [];
+		this.rotarySources = [];
 		if (this.dropTimer) clearTimeout(this.dropTimer);
 		this.dropTimer = null;
 	}
