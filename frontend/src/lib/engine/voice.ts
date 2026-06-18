@@ -19,8 +19,10 @@ export type VoiceParams = {
 	cutoff: number;
 	/** filter resonance 0..1 (Q 0.7..17.7) */
 	resonance: number;
-	/** filter envelope amount 0..1 — sweeps cutoff up to +4 octaves via ADSR */
+	/** filter envelope amount 0..1 — sweeps cutoff up to +4 octaves on note-on */
 	filterEnv: number;
+	/** filter envelope decay 0..1 — 303-style pluck time, mapped to 0.03..3 s */
+	filterDecay: number;
 };
 
 export type LfoRoute = { node: AudioNode; target: 'pitch' | 'filter' };
@@ -85,6 +87,8 @@ export class Voice {
 	private readonly decay: number;
 	private readonly sustain: number;
 	private readonly release: number;
+	/** 303 filter-env decay in seconds (mapped from params.filterDecay) */
+	private readonly filterDecay: number;
 
 	private endedUnits = 0;
 	private stopped = false;
@@ -115,10 +119,14 @@ export class Voice {
 		this.decay = Math.max(params.decay, 0.003);
 		this.sustain = params.sustain;
 		this.release = Math.max(params.release, 0.01);
+		// 303-style filter env decay: its own time, exponential back to base.
+		this.filterDecay = 0.03 * 100 ** params.filterDecay;
 		this.mods = mods;
 
-		// Per-voice resonant lowpass; the filter envelope rides the same ADSR
-		// shape as the amp (sustain reuses the amp sustain level).
+		// Per-voice resonant lowpass. The filter envelope is a TB-303-style AD
+		// pluck (no sustain): snap the cutoff up on note-on, then decay back to
+		// the base cutoff. That downward sweep through the resonance is the acid
+		// "wow" — and it's why the decay has its own knob, decoupled from the amp.
 		this.filter = ctx.createBiquadFilter();
 		this.filter.type = 'lowpass';
 		this.filter.Q.value = 0.7 + params.resonance * 17;
@@ -127,10 +135,9 @@ export class Voice {
 		if (params.filterEnv > 0) {
 			const peak = Math.min(base * 2 ** (params.filterEnv * 4), 16000);
 			this.filter.frequency.linearRampToValueAtTime(peak, when + this.attack);
-			this.filter.frequency.linearRampToValueAtTime(
-				base + (peak - base) * this.sustain,
-				when + this.attack + this.decay
-			);
+			// setTargetAtTime is an RC discharge (like the 303's envelope); tau =
+			// decay/3 reaches ~95% of the way down over filterDecay seconds.
+			this.filter.frequency.setTargetAtTime(base, when + this.attack, this.filterDecay / 3);
 		}
 		this.filter.connect(destination);
 		for (const mod of this.mods) {
@@ -267,22 +274,13 @@ export class Voice {
 	}
 
 	/**
-	 * Live filter tweak on a sounding note. Lands on the envelope's steady-state
-	 * value for the new cutoff (post attack+decay this is exact; mid-attack it
-	 * settles early — fine for knob twisting).
+	 * Live filter tweak on a sounding note. The env is a transient pluck that has
+	 * decayed back to the base cutoff, so a knob twist just glides cutoff/Q to
+	 * their new resting values (the next note re-triggers the sweep).
 	 */
-	setFilter(
-		cutoff: number,
-		resonance: number,
-		filterEnv: number,
-		sustain: number,
-		now: number
-	): void {
-		const base = cutoffHz(cutoff);
-		const peak = Math.min(base * 2 ** (filterEnv * 4), 16000);
-		const steady = filterEnv > 0 ? base + (peak - base) * sustain : base;
+	setFilter(cutoff: number, resonance: number, now: number): void {
 		this.filter.frequency.cancelScheduledValues(now);
-		this.filter.frequency.setTargetAtTime(steady, now, 0.03);
+		this.filter.frequency.setTargetAtTime(cutoffHz(cutoff), now, 0.03);
 		this.filter.Q.setTargetAtTime(0.7 + resonance * 17, now, 0.03);
 	}
 

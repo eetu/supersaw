@@ -44,7 +44,7 @@
 		const { fx, fy } = pos(e);
 		touches.set(e.pointerId, { x: fx, y: fy });
 		engine.padGlide(e.pointerId, freqAt(fx));
-		engine.padFilter(e.pointerId, cutoffAt(fy), params.resonance, params.sustain);
+		engine.padFilter(e.pointerId, cutoffAt(fy), params.resonance);
 	}
 
 	function up(e: PointerEvent): void {

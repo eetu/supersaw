@@ -246,11 +246,9 @@ export class SynthEngine {
 		this.voices.get(`${PAD_VOICE}:${id}`)?.setFrequency(freq, 0.04, this.ctx.currentTime);
 	}
 
-	padFilter(id: number, cutoff: number, resonance: number, sustain: number): void {
+	padFilter(id: number, cutoff: number, resonance: number): void {
 		if (!this.ctx) return;
-		this.voices
-			.get(`${PAD_VOICE}:${id}`)
-			?.setFilter(cutoff, resonance, 0, sustain, this.ctx.currentTime);
+		this.voices.get(`${PAD_VOICE}:${id}`)?.setFilter(cutoff, resonance, this.ctx.currentTime);
 	}
 
 	padOff(id: number): void {
@@ -570,11 +568,11 @@ export class SynthEngine {
 	 * sequencer one-shots are left alone — cancelling their future envelope
 	 * ramps would wreck them, and each step reads fresh params anyway.
 	 */
-	setFilter(cutoff: number, resonance: number, filterEnv: number, sustain: number): void {
+	setFilter(cutoff: number, resonance: number): void {
 		if (!this.ctx) return;
 		const now = this.ctx.currentTime;
 		for (const voice of this.voices.values()) {
-			voice.setFilter(cutoff, resonance, filterEnv, sustain, now);
+			voice.setFilter(cutoff, resonance, now);
 		}
 	}
 

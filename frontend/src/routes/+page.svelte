@@ -26,9 +26,7 @@
 	$effect(() => engine.setLfo(params.lfoRate, params.lfoDepth, params.lfoTarget));
 	$effect(() => engine.setLofi(params.lofi));
 	// filter knobs retarget already-sounding voices too
-	$effect(() =>
-		engine.setFilter(params.cutoff, params.resonance, params.filterEnv, params.sustain)
-	);
+	$effect(() => engine.setFilter(params.cutoff, params.resonance));
 </script>
 
 <section class="halo-card controls">
@@ -80,6 +78,7 @@
 				<RangeSlider label="cutoff" bind:value={params.cutoff} />
 				<RangeSlider label="res" bind:value={params.resonance} />
 				<RangeSlider label="env" bind:value={params.filterEnv} />
+				<RangeSlider label="decay" bind:value={params.filterDecay} />
 				<RangeSlider label="rate" bind:value={params.lfoRate} />
 				<RangeSlider label="depth" bind:value={params.lfoDepth} />
 			</div>

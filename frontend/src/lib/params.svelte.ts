@@ -15,6 +15,7 @@ export const params: SynthParams = $state({
 	cutoff: 1,
 	resonance: 0.1,
 	filterEnv: 0,
+	filterDecay: 0.4,
 	poly: true,
 	glide: 0,
 	lfoRate: 0.4,
