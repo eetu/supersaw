@@ -1,4 +1,4 @@
-import svelte from 'eslint-config/svelte';
+import svelte from '@anarkisti/eslint-config/svelte';
 
 import svelteConfig from './svelte.config.js';
 
