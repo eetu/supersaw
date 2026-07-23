@@ -30,6 +30,18 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@anarkisti/igyb@npm:^0.5.0":
+  version: 0.5.0
+  resolution: "@anarkisti/igyb@npm:0.5.0"
+  peerDependencies:
+    svelte: ^5
+  peerDependenciesMeta:
+    svelte:
+      optional: true
+  checksum: 10/f3db38acfe33ac4d43a076a5ddc1a409abeedcd0e0ddcc1f01be50be65c6d129dda6f013e3d156bc39a7fa48b11120fe73af5054b276a9dcb941375efe1f266c
+  languageName: node
+  linkType: hard
+
 "@emnapi/core@npm:1.11.1":
   version: 1.11.1
   resolution: "@emnapi/core@npm:1.11.1"
@@ -2256,6 +2268,7 @@ __metadata:
   resolution: "supersaw-frontend@workspace:."
   dependencies:
     "@anarkisti/eslint-config": "npm:^1.1.0"
+    "@anarkisti/igyb": "npm:^0.5.0"
     "@lucide/svelte": "npm:^1.24.0"
     "@sveltejs/adapter-static": "npm:^3.0.10"
     "@sveltejs/kit": "npm:^2.69.3"

@@ -5,6 +5,7 @@
 
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
+	import SawBackground from '$lib/components/SawBackground.svelte';
 	import Wordmark from '$lib/components/Wordmark.svelte';
 	import { engine } from '$lib/engine/engine';
 	import { params } from '$lib/params.svelte';
@@ -36,6 +37,11 @@
 <svelte:head>
 	<title>supersaw</title>
 </svelte:head>
+
+<!-- Whisper-subtle generative backdrop, fixed behind the shell (z-index:0). It fills
+	the empty desktop gutter around the centred ~900px instrument; the shell sits above
+	it via z-index:1 below. -->
+<SawBackground />
 
 <div class="shell" class:wide={page.url.pathname === '/seq'} class:lofi={params.lofi}>
 	<header class="top">
@@ -75,6 +81,9 @@
 		display: flex;
 		flex-direction: column;
 		gap: 1.25rem;
+		/* lift the instrument above the fixed z-index:0 backdrop (SawBackground) */
+		position: relative;
+		z-index: 1;
 	}
 	/* lo-fi mode wears an 80s skin: the accent goes neon magenta (every
 	   control, canvas and pad reads it via the CSS var), the page warms up
