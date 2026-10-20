@@ -535,12 +535,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@sveltejs/adapter-static@npm:^3.0.10":
-  version: 3.0.10
-  resolution: "@sveltejs/adapter-static@npm:3.0.10"
+"@sveltejs/adapter-static@npm:^4.0.0":
+  version: 4.0.0
+  resolution: "@sveltejs/adapter-static@npm:4.0.0"
   peerDependencies:
-    "@sveltejs/kit": ^2.0.0
-  checksum: 10/73d4f859d10fda89eee68857a8a1d9f2ca6e2209bdc99daed9a4230a5f7b724dd82a89465edcde9e8570a78be9e2eae51a6127fd477cd441d5bc2ed49255207b
+    "@sveltejs/kit": ^3.0.0-next.0
+  checksum: 10/d18627ea72cebf18e9fd647efc2ff3f6a65932c07c2c0844975480b79e2618d17b19751cb87655e70d859a1d2bf1ad497bad034fd0ba86b985e9543c5ac5f8d4
   languageName: node
   linkType: hard
 
@@ -2340,7 +2340,7 @@ __metadata:
     "@anarkisti/eslint-config": "npm:^1.1.0"
     "@anarkisti/igyb": "npm:^0.5.0"
     "@lucide/svelte": "npm:^1.52.0"
-    "@sveltejs/adapter-static": "npm:^3.0.10"
+    "@sveltejs/adapter-static": "npm:^4.0.0"
     "@sveltejs/kit": "npm:^2.70.3"
     "@sveltejs/vite-plugin-svelte": "npm:^7.3.1"
     "@types/node": "npm:^26"
