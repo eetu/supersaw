@@ -264,7 +264,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@humanfs/node@npm:^0.16.6":
+"@humanfs/node@npm:^0.16.8":
   version: 0.16.8
   resolution: "@humanfs/node@npm:0.16.8"
   dependencies:
@@ -375,12 +375,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@lucide/svelte@npm:^1.62.0":
-  version: 1.62.0
-  resolution: "@lucide/svelte@npm:1.62.0"
+"@lucide/svelte@npm:^1.67.0":
+  version: 1.67.0
+  resolution: "@lucide/svelte@npm:1.67.0"
   peerDependencies:
     svelte: ^5
-  checksum: 10/54b77edec88340d51232eb74f14cca5fd9414952495cf14dd4b6164482732d07f4378af27d3901e3d1b1a9ff63286d06c6b876cfc766b03bd325111c43f93551
+  checksum: 10/57e9701623820b2f0a87b050c2487ffdf48b12341943570f74fe5b4190d49e27d229c9b47ced00a1e6e37ed31140e71d8a831d6bee8b6d1c9738f5b9b4101355
   languageName: node
   linkType: hard
 
@@ -535,12 +535,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@sveltejs/adapter-static@npm:^4.0.0":
-  version: 4.0.0
-  resolution: "@sveltejs/adapter-static@npm:4.0.0"
+"@sveltejs/adapter-static@npm:^4.0.1":
+  version: 4.0.1
+  resolution: "@sveltejs/adapter-static@npm:4.0.1"
   peerDependencies:
     "@sveltejs/kit": ^3.0.0-next.0
-  checksum: 10/d18627ea72cebf18e9fd647efc2ff3f6a65932c07c2c0844975480b79e2618d17b19751cb87655e70d859a1d2bf1ad497bad034fd0ba86b985e9543c5ac5f8d4
+  checksum: 10/bad6e6de2ecc5e77e5298013f6601d1fd07f24a3276ee1c1d717d5f0095e6044f3ad6d0a75821269e98a507dc306c742f31a7c9556fb948db1bc050437d2dc9d
   languageName: node
   linkType: hard
 
@@ -1356,9 +1356,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"eslint@npm:^10.13.0":
-  version: 10.13.0
-  resolution: "eslint@npm:10.13.0"
+"eslint@npm:^10.14.0":
+  version: 10.14.0
+  resolution: "eslint@npm:10.14.0"
   dependencies:
     "@eslint-community/eslint-utils": "npm:^4.8.0"
     "@eslint-community/regexpp": "npm:^4.12.2"
@@ -1366,7 +1366,7 @@ __metadata:
     "@eslint/config-helpers": "npm:^0.7.0"
     "@eslint/core": "npm:^1.2.1"
     "@eslint/plugin-kit": "npm:^0.7.3"
-    "@humanfs/node": "npm:^0.16.6"
+    "@humanfs/node": "npm:^0.16.8"
     "@humanwhocodes/module-importer": "npm:^1.0.1"
     "@humanwhocodes/retry": "npm:^0.4.2"
     "@types/estree": "npm:^1.0.6"
@@ -1387,7 +1387,7 @@ __metadata:
     imurmurhash: "npm:^0.1.4"
     is-glob: "npm:^4.0.0"
     json-stable-stringify-without-jsonify: "npm:^1.0.1"
-    minimatch: "npm:^10.2.5"
+    minimatch: "npm:^10.2.6"
     natural-compare: "npm:^1.4.0"
     optionator: "npm:^0.9.3"
   peerDependencies:
@@ -1397,7 +1397,7 @@ __metadata:
       optional: true
   bin:
     eslint: bin/eslint.js
-  checksum: 10/04b7140a6fb4614d3cd5feb35041cd3b2b92f80d7fd015d8d320c76e015577863dc530c1bcf228eb3b58b06151e45b6452dd349a6863d21eeefa02ceaee1377f
+  checksum: 10/66743528bfef3961deb3141fc6893e1f137f2ed2602ee36482107cdd49b1a14a1c3da9bb9824fd3530003a23f041b6854f28c20306e99d9b7222a825998e8ed9
   languageName: node
   linkType: hard
 
@@ -1902,7 +1902,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"minimatch@npm:^10.2.5":
+"minimatch@npm:^10.2.6":
   version: 10.2.6
   resolution: "minimatch@npm:10.2.6"
   dependencies:
@@ -2339,25 +2339,25 @@ __metadata:
   dependencies:
     "@anarkisti/eslint-config": "npm:^1.1.0"
     "@anarkisti/igyb": "npm:^0.5.0"
-    "@lucide/svelte": "npm:^1.62.0"
-    "@sveltejs/adapter-static": "npm:^4.0.0"
+    "@lucide/svelte": "npm:^1.67.0"
+    "@sveltejs/adapter-static": "npm:^4.0.1"
     "@sveltejs/kit": "npm:^2.70.3"
     "@sveltejs/vite-plugin-svelte": "npm:^7.3.1"
     "@types/node": "npm:^26"
-    eslint: "npm:^10.13.0"
+    eslint: "npm:^10.14.0"
     prettier: "npm:^3.9.10"
     prettier-plugin-svelte: "npm:^4.1.1"
     svelte: "npm:^5.57.3"
-    svelte-check: "npm:^4.7.7"
+    svelte-check: "npm:^4.7.8"
     typescript: "npm:^6.0.2"
     typescript-eslint: "npm:^8.72.1"
     vite: "npm:^8.3.5"
   languageName: unknown
   linkType: soft
 
-"svelte-check@npm:^4.7.7":
-  version: 4.7.7
-  resolution: "svelte-check@npm:4.7.7"
+"svelte-check@npm:^4.7.8":
+  version: 4.7.8
+  resolution: "svelte-check@npm:4.7.8"
   dependencies:
     "@jridgewell/trace-mapping": "npm:^0.3.25"
     "@sveltejs/load-config": "npm:^0.2.3"
@@ -2370,7 +2370,7 @@ __metadata:
     typescript: ^5.0.0 || ^6.0.0
   bin:
     svelte-check: bin/svelte-check
-  checksum: 10/3ceebcf3c039f31043543f996677fc57525f0e3fb4928e7fa301ee8d6b2591241305ac5d21da0a64641a13b67a068184cf5aa2f5746896124c1f3bade8566c7f
+  checksum: 10/1c776abedfdee7b4232f055e8f360a67777651a9a067e2f6fdb6233d2f24827d3fe7388c3ba7a5589be4124297331c81a8ef236d6d8a762ff2bed3e20e909b9c
   languageName: node
   linkType: hard
 
